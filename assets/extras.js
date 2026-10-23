@@ -70,53 +70,7 @@
   };
 
   /* ---------- sea birds ---------- */
-  var birds = [], lost = [], BS = null;
-  /* gulls are painted procedurally on the scene's own pixel grid (1 sprite px = 1 scene px): parts are rasterised at pixel centres,
-     shaded with a checker dither, outlined, and mirrored for the other facing; the dive/rise poses are rasterised rotated, never rotated afterwards. */
-  var GPAL={O:[11,61,117],k:[11,61,117],g:[84,134,180],G:[140,186,216],W:[244,251,254],w:[202,240,248],s:[144,224,239],b:[240,160,48],e:[3,4,94],y:[232,144,72]};
-  function gullFrame(o){ // o: {w:wing pose -1..1 (1 up), rot:radians (0 level, +down), fold:0..1, float:bool, sw:0|1 swim}
-    var N=24,C=N/2,cell=[],i,j;for(i=0;i<N*N;i++)cell.push('');
-    var cr=Math.cos(o.rot||0),sr=Math.sin(o.rot||0);
-    function tp(x,y){return [C+x*cr-y*sr, C+x*sr+y*cr];}
-    function inPoly(P,x,y){var c=false;for(var a=0,b=P.length-1;a<P.length;b=a++){if(((P[a][1]>y)!==(P[b][1]>y))&&(x<(P[b][0]-P[a][0])*(y-P[a][1])/(P[b][1]-P[a][1])+P[a][0]))c=!c;}return c;}
-    function poly(L,fn){var P=L.map(function(p){return tp(p[0],p[1]);});for(var y=0;y<N;y++)for(var x=0;x<N;x++)if(inPoly(P,x+.5,y+.5)){var ch=fn(x,y,tp);if(ch)cell[y*N+x]=ch;}}
-    function ell(cx,cy,rx,ry,fn){var c=tp(cx,cy);for(var y=0;y<N;y++)for(var x=0;x<N;x++){var px=x+.5-c[0],py=y+.5-c[1],ux=px*cr+py*sr,uy=-px*sr+py*cr;if(ux*ux/(rx*rx)+uy*uy/(ry*ry)<=1){var ch=fn(x,y,ux,uy);if(ch)cell[y*N+x]=ch;}}}
-    var w=o.w,fold=o.fold||0;
-    function lerp(a,b,t){return a+(b-a)*t;}
-    function wingPts(v){ var K=[[ -3,2.4,-6.5,7.4 ],[ -4.5,-2.8,-12.5,-3.8 ],[ -2.6,-6.6,-5,-12 ]]; // elbow x,y, tip x,y for down, mid, up
-      var i=v<0?0:1,t=v<0?v+1:v;var a=K[i],b=K[i+1];var r=[lerp(a[0],b[0],t),lerp(a[1],b[1],t),lerp(a[2],b[2],t),lerp(a[3],b[3],t)];
-      if(fold>.5)r=[-5,-2,-11.5,-.5-1.5*Math.max(0,v)];return r;}
-    function wing(far){
-      var q=wingPts(far?Math.min(1,w*.8+.12):w), ex=q[0],ey=q[1],tx=q[2],ty=q[3], wd=far?4.2:6.4, rf=[3.4,-1.9],rb=[-5.2,-.9];
-      var n=Math.hypot(tx-ex,ty-ey)||1,nx=-(ty-ey)/n,ny=(tx-ex)/n,e1=[ex-nx*wd*.7+1.6,ey-ny*wd*.7],e2=[ex+nx*wd*.7-.6,ey+ny*wd*.7];
-      poly([rf,e2,[tx,ty],e1,rb],function(x,y,tpf){var T=tp(tx,ty),d=Math.hypot(x+.5-T[0],y+.5-T[1]);if(d<3)return 'k';if(far)return 's';return (((x+y)&1)&&d<5)?'G':(d>5&&((x+y)&1)?'G':'g');});
-    }
-    if(!o.float){ if(!o.noFar){ // far wing, shifted a bit up/forward
-        var sv=w; w=Math.min(1,w*.8+.15); wing(true); w=sv; } }
-    // tail
-    poly([[-4,-.8],[-9.6,-1.9],[-9.8,.6],[-5,1.6]],function(x,y){return 'w';});
-    // body
-    ell(0,0,6.4,2.7,function(x,y,ux,uy){return uy>1.15?((x+y)&1?'s':'w'):uy>.2?'w':'W';});
-    // near wing / folded wing
-    if(o.float){ poly([[2.5,-1.6],[-1,-3.1],[-7.5,-2.6],[-9.5,-.8],[-4,.4],[1,.1]],function(){return 'g';}); }
-    else { wing(false); }
-    // head + beak + eye
-    ell(6.6,-1.7,2.3,2.1,function(x,y,ux,uy){return uy>.7?'w':'W';});
-    var bp=tp(9.6,-1.3);poly([[8.4,-2.1],[10.8,-1.2],[8.4,-.3]],function(){return 'b';});
-    var ep=tp(7.2,-2.2);cell[Math.floor(ep[1])*N+Math.floor(ep[0])]='e';
-    if(o.carry){var cp=tp(10.4,.2);}
-    // outline
-    var out=cell.slice();for(var y=0;y<N;y++)for(var x=0;x<N;x++){if(cell[y*N+x])continue;var nb=0;[[1,0],[-1,0],[0,1],[0,-1]].forEach(function(d){var X=x+d[0],Y=y+d[1];if(X>=0&&Y>=0&&X<N&&Y<N&&cell[Y*N+X])nb=1;});if(nb)out[y*N+x]='O';}
-    // wing tips dark: far end of wing pixels that are 'g'
-    return out;
-  }
-
-  function gullCanvas(o) { var f = gullFrame(o), c = mk(24, 24), g = c.getContext('2d'), i; for (i = 0; i < 576; i++) { var ch = f[i]; if (ch) { var k = GPAL[ch]; g.fillStyle = 'rgb(' + k[0] + ',' + k[1] + ',' + k[2] + ')'; g.fillRect(i % 24, (i / 24) | 0, 1, 1); } } return [c, fp(c)]; }
-  function fp(c) { var o = mk(c.width, c.height), g = o.getContext('2d'); g.translate(c.width, 0); g.scale(-1, 1); g.drawImage(c, 0, 0); return o; }
-  function birdSprites() {
-    if (BS) return BS;
-    return BS = { fly: [1, .1, -1, .1].map(function (w) { return gullCanvas({ w: w }); }), fl: gullCanvas({ w: 0, float: true }), dv: [.8, 1.15, 1.55].map(function (r) { return gullCanvas({ w: .5, fold: 1, rot: r }); }), rs: gullCanvas({ w: .5, fold: 1, rot: -1.5 }), fish: spr(['.hh.', 'hhhh', '.hh.'], { h: '#9ad0f0' }) };
-  }
+  var birds = [], lost = [];
   function initBirds() { birds = []; var n = A.W < 200 ? 2 : A.W < 300 ? 3 : 4; for (var i = 0; i < n; i++) birds.push({ m: i < 2 ? 'float' : 'fly', x: A.W * (.18 + .64 * ((i * .37 + .11) % 1)), y: 0, dir: i & 1 ? -1 : 1, vx: 0, ph: i * 1.7, cd: 10 + i * 6, dc: 6 + i * 5, carry: 0, tg: null, ut: 0, tr: 0 }); }
   function laneY(b) { return A.HZ * .74 + (A.SY - 10 - A.HZ * .74) * (.2 + .6 * hash(b.ph * 10 | 0, 2, 5)); }
   function updateBirds(dt, t, camI) {
@@ -134,15 +88,7 @@
     }
     for (i = lost.length - 1; i >= 0; i--) { lost[i].t -= dt; if (lost[i].t <= 0) { lost[i].s.fs.push(lost[i].f); lost.splice(i, 1); } }
   }
-  FX.birds = function (g, camI, t) {
-    var B = birdSprites(), SY = A.SY; if (camI > SY + 200) return;
-    for (var i = 0; i < birds.length; i++) { var b = birds[i]; if (b.y < camI - 16 || b.y > camI + A.H + 16) continue; var fi = b.dir > 0 ? 0 : 1, x = Math.round(b.x), y = Math.round(b.y), s, al = 1;
-      if (b.m === 'float') s = B.fl[fi], y += 1;
-      else if (b.m === 'fly' || b.m === 'land') { s = B.fly[((t * (b.m === 'land' ? 7 : 5) + b.ph) | 0) & 3][fi]; if (b.carry > 0) g.drawImage(B.fish, x + (b.dir > 0 ? 8 : -12), y + 1); }
-      else if (b.m === 'rise') { s = B.rs[fi]; if (b.carry > 0) g.drawImage(B.fish, x + (b.dir > 0 ? 3 : -7), y - 6); }
-      else { var dx = b.m === 'dive' && b.tg ? Math.abs(b.tg.x + 17 - b.x) : 0; s = B.dv[b.m === 'under' ? 2 : dx > 22 ? 0 : dx > 8 ? 1 : 2][fi]; if (b.m !== 'dive') al = .78; }
-      if (al < 1) g.globalAlpha = al; g.drawImage(s, x - 12, y - 12); if (al < 1) g.globalAlpha = 1; }
-  };
+  FX.getBirds = function () { return birds; };   // drawn by the hand-made gull sprites (assets/sprites.js)
 
   /* ---------- rain + lightning, drawn over the surface ---------- */
   FX.top = function (g, dt, t, camI) {
@@ -154,7 +100,6 @@
       if (bolt) { var a = clamp(1 - bolt.t / .5, 0, 1); [[bolt.pts, 1]].concat(bolt.br.map(function (p) { return [p, 0]; })).forEach(function (bp) { var p = bp[0]; for (var k = 1; k < p.length; k++) { g.fillStyle = 'rgba(144,224,239,' + (.55 * a).toFixed(2) + ')'; line(g, p[k - 1][0] - 1, p[k - 1][1], p[k][0] - 1, p[k][1], 3); g.fillStyle = 'rgba(244,252,255,' + (.95 * a).toFixed(2) + ')'; line(g, p[k - 1][0], p[k - 1][1], p[k][0], p[k][1], bp[1] ? 2 : 1); } });
         if (bolt.t < .25) { var e = bolt.pts[bolt.pts.length - 1]; g.fillStyle = 'rgba(244,252,255,.8)'; g.fillRect(Math.round(e[0]) - 4, SY, 9, 1); g.fillRect(Math.round(e[0]) - 2, SY - 1, 5, 1); } }
     }
-    FX.birds(g, camI, t);
   };
 
   /* ---------- hookup ---------- */

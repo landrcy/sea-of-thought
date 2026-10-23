@@ -1,4 +1,4 @@
-/* Sea of Thought — pirate ships (hand-made art by the pixel boss, see assets/sprites/manifest.json), re-gridded onto the scene's own pixels.
+/* Sea of Thought — hand-made sprite layer (gulls and pirate ships, art by the pixel boss, see assets/sprites/manifest.json). Gulls are drawn as they are (whole-number css px per art px); the ships are re-gridded onto the scene's own pixels.
  * The source sheets were drawn on a finer pixel grid than the scene, so each ship is box-reduced by an integer factor (a block's dominant colour wins,
  * the silhouette is re-outlined with a darker tone of its own colour) until one ship pixel is exactly one scene pixel. It is then drawn on the
  * #sprites canvas (between the scene and the bottle/foreground layer) at an integer multiple of the scene scale S and snapped to the scene grid, so no
@@ -10,17 +10,31 @@
   var qs = new URLSearchParams(location.search);
   var clamp = function (v, a, b) { return Math.max(a, Math.min(b, v)); };
   /* manifest: name -> [frame w, frame h, frames, anchor x, anchor y, loop order, has glow sheet] */
-  var M = {sloop_small:[76,80,3,34,76,[0, 1, 2]],sloop_large:[125,132,3,56,128,[0, 1, 2]],galleon_small:[136,122,3,68,111,[0, 1, 2],1],galleon_large:[223,199,3,111,188,[0, 1, 2],1]};
-  var SPR = SOT.spr = {}, sheets = {}, A = null, cv = null, c = null, CW = 0, CH = 0;
+  var M = {seagull_float:[36,30,2,18,15,[0, 1]],seagull_fly:[36,30,3,18,15,[0, 1, 2, 1]],seagull_dive:[36,30,2,18,15,[0, 1]],sloop_small:[76,80,3,34,76,[0, 1, 2]],sloop_large:[125,132,3,56,128,[0, 1, 2]],galleon_small:[136,122,3,68,111,[0, 1, 2],1],galleon_large:[223,199,3,111,188,[0, 1, 2],1]};
+  var SPR = SOT.spr = {}, sheets = {}, A = null, cv = null, c = null, CW = 0, CH = 0, K = 2;
 
   /* ---------- loading ---------- */
   function sheet(name) {
     var s = sheets[name]; if (s) return s; var d = M[name]; if (!d) return null;
-    s = sheets[name] = { name: name, w: d[0], h: d[1], n: d[2], ax: d[3], ay: d[4], loop: d[5], hasGlow: !!d[6], ready: false, img: new Image(), red: {} };
-    s.img.onload = function () { s.ready = !s.hasGlow || s.gready; }; s.img.src = 'assets/sprites/' + name + '.png';
+    s = sheets[name] = { name: name, w: d[0], h: d[1], n: d[2], ax: d[3], ay: d[4], loop: d[5], hasGlow: !!d[6], ready: false, img: new Image(), red: {}, bot: d[1], gull: name.indexOf('seagull') === 0 };
+    s.img.onload = function () { if (s.gull) prepGull(s); else s.ready = !s.hasGlow || s.gready; }; s.img.src = 'assets/sprites/' + name + '.png';
     if (s.hasGlow) { s.gimg = new Image(); s.gimg.onload = function () { s.gready = true; s.ready = !!s.img.complete && s.img.naturalWidth > 0; }; s.gimg.src = 'assets/sprites/' + name + '_glow.png'; }
     return s;
   }
+  /* gulls: the hand-made sheets drawn as they are (whole-number css px per art px, mirrored copy for the other direction) */
+  function prepGull(s) {
+    var o = px.mkCanvas(s.w * s.n, s.h), g = o.getContext('2d'), i; g.imageSmoothingEnabled = false;
+    for (i = 0; i < s.n; i++) { g.save(); g.translate((i + 1) * s.w, 0); g.scale(-1, 1); g.drawImage(s.img, i * s.w, 0, s.w, s.h, 0, 0, s.w, s.h); g.restore(); } s.flip = o;
+    try { var t = px.mkCanvas(s.img.width, s.img.height), tg = t.getContext('2d', { willReadFrequently: true }), d, bot = 0, x, y; tg.drawImage(s.img, 0, 0); d = tg.getImageData(0, 0, t.width, t.height).data;
+      for (y = s.h - 1; y >= 0 && !bot; y--) for (x = 0; x < s.w * s.n; x++) if (d[(y * t.width + x) * 4 + 3]) { bot = y + 1; break; } s.bot = bot || s.h; } catch (e) { s.bot = s.h; }
+    s.ready = true;
+  }
+  function put(s, fr, dir, cx, cy, sc, a) {
+    if (!s || !s.ready) return; var dx = Math.round(cx - (dir > 0 ? s.ax : s.w - s.ax) * sc), dy = Math.round(cy - s.ay * sc), dw = s.w * sc, dh = s.h * sc;
+    if (dx > CW || dy > CH || dx + dw < 0 || dy + dh < 0) return;
+    if (a < 1) c.globalAlpha = a; c.drawImage(dir > 0 ? s.img : s.flip, fr * s.w, 0, s.w, s.h, dx, dy, dw, dh); if (a < 1) c.globalAlpha = 1;
+  }
+  function frame(s, at) { return s.loop[Math.floor(at) % s.loop.length]; }
   function pix(img, w, h) { var cc = px.mkCanvas(w, h), g = cc.getContext('2d', { willReadFrequently: true }); g.drawImage(img, 0, 0); return g.getImageData(0, 0, w, h).data; }
   /* box-reduce a sheet by an integer factor d: per block the dominant colour (dark outline tones weigh a little more) if enough of the block is opaque */
   function reduce(s, d) {
@@ -61,7 +75,7 @@
     var d = 1; while (d < 8 && ((s.ay + 6) / d > A.SY * .9 || s.w / d > A.W * .45)) d++; return d;
   }
   function ensure() {
-    var k2 = A.W + ',' + A.S + ',' + (A.BT - A.SY); if (k2 === key) return; var old = key !== ''; key = k2;
+    K = A.S >= 5 ? 3 : Math.max(1, A.S >> 1); var k2 = A.W + ',' + A.S + ',' + (A.BT - A.SY); if (k2 === key) return; var old = key !== ''; key = k2;
     var cssW = document.documentElement.clientWidth, cssH = window.innerHeight;
     if (cv.width !== cssW || cv.height !== cssH) { cv.width = cssW; cv.height = cssH; c = cv.getContext('2d'); c.imageSmoothingEnabled = false; } CW = cssW; CH = cssH;
     if (old && ship) ship = null;
@@ -89,7 +103,7 @@
     ensure(); if (!c) return; var S = A.S, j;
     updateShip(dt);
     c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, CW, CH); c.imageSmoothingEnabled = false; camI = Math.round(camI);
-    var gl = null;
+    var gl = null, birds = FX.getBirds ? FX.getBirds() : [], i;
     if (ship && ship.sh.ready) {
       var R = ship.R, sh = ship.sh, wl = 0, n = 0, cx = Math.round(ship.x), hw = Math.round(ship.wS * .4);
       for (j = -hw; j <= hw; j += 3) { wl += A.surfY(cx + j, t); n++; } wl /= n;
@@ -101,14 +115,21 @@
         if (R.glow) gl = { im: ship.dir > 0 ? R.glow : R.gflip, fr: fr, R: R, x: dx * S, y: dy * S };
       }
     }
-    /* one wash darkens the ships like the water around them: night, depth, rain */
+    /* gulls: float / fly (loop 0,1,2,1) / dive frames, driven by the bird states in extras.js */
+    for (i = 0; i < birds.length; i++) { var b = birds[i], gs, gf, ga = 1, gx = b.x * S, gy;
+      if (b.y < camI - 14 || b.y > camI + A.H + 14) continue; var dirb = b.dir > 0 ? 1 : -1;
+      if (b.m === 'float') { gs = sheet('seagull_float'); if (!gs.ready) continue; gf = frame(gs, t * 1.6 + b.ph); gy = (b.y + 5 - camI) * S - gs.bot * K + gs.ay * K; put(gs, gf, dirb, gx, gy, K, 1); }
+      else if (b.m === 'dive' || b.m === 'under') { gs = sheet('seagull_dive'); gf = frame(gs, t * 8 + b.ph); ga = b.m === 'under' ? .8 : 1; put(gs, gf, dirb, gx, (b.y - camI) * S, K, ga); }
+      else { gs = sheet('seagull_fly'); gf = frame(gs, t * (b.m === 'land' ? 8 : 6.5) + b.ph); ga = b.m === 'rise' ? .85 : 1; put(gs, gf, dirb, gx, (b.y - camI) * S, K, ga);
+        if (b.carry > 0 && gs.ready) { c.fillStyle = '#9ad0f0'; c.fillRect(Math.round(gx + dirb * 12 * K - 2 * K), Math.round((b.y - camI) * S + 3 * K), 4 * K, 2 * K); } } }
+    /* one wash darkens the sprites like the water around them: night, depth, rain */
     var nA = .58 * FX.night * (1 - depthF * .75) * .9, sA = ((FX.rain || 0) * .08 + (FX.storm || 0) * .16) * (1 - depthF), dA = .2 * depthF, tot = 1 - (1 - nA) * (1 - sA) * (1 - dA);
     if (tot > .01) { c.globalCompositeOperation = 'source-atop'; c.fillStyle = 'rgba(3,6,72,' + tot.toFixed(3) + ')'; c.fillRect(0, 0, CW, CH); c.globalCompositeOperation = 'source-over'; }
     if (gl) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = clamp((.45 + .55 * FX.night) * (.75 + .25 * Math.sin(t * 2.2)), 0, 1);
       c.drawImage(gl.im, gl.fr * gl.R.fw, 0, gl.R.fw, gl.R.fh, gl.x, gl.y, gl.R.fw * S, gl.R.fh * S); c.globalAlpha = 1; c.globalCompositeOperation = 'source-over'; }
   };
   SPR.debug = { ship: function (n) { shipForce = n || '1'; shipN = 0; ship = null; shipCool = 0; }, ship_: function () { return ship; } };
-  SPR.probe = function () { return { ship: ship && ship.sh.name, ships: shipN, d: ship && ship.R.d, px: ship && [ship.R.fw, ship.R.fh] }; };
+  SPR.probe = function () { return { K: K, ship: ship && ship.sh.name, ships: shipN, d: ship && ship.R.d, px: ship && [ship.R.fw, ship.R.fh] }; };
   /* start loading now so nothing pops in */
   Object.keys(M).forEach(sheet);
   if (shipForce) shipCool = .2; else shipCool = 45 + Math.random() * 60;
