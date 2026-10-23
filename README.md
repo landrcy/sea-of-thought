@@ -10,7 +10,7 @@ cd /workspace/sea-of-thought-site && python3 -m http.server 8750
 ```
 Opening `index.html` directly from disk also works (all paths are relative).
 
-Dev-only query parameters: `?demo=30` (in-memory sample bottles, nothing saved or sent), `?local` (skip the shared store, use localStorage), `?sky=day`, `#bottle-12` (opens that bottle).
+Dev-only query parameters: `?demo=30` (in-memory sample bottles, nothing saved or sent), `?local` (skip the shared store, use localStorage), `?sky=night` (night ocean; default is day), `#bottle-12` (opens that bottle).
 
 ## Files
 - `index.html` – all sections: hero, The Sea, Write a Bottle, Older bottles, How it works, footer, modal
