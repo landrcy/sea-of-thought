@@ -17,7 +17,7 @@
     var skew = sp.skew || .82, pw = sp.pw || .7, ped = sp.ped || .75, amp = Math.max(1, Math.round(hh * .22)) * (sp.flex == null ? 1 : sp.flex);
     for (var f = 0; f < FR; f++) {
       var c = mk(w, h), g = c.getContext('2d'), flex = FLEX[f] * amp, topY = [], botY = [], hf = [], x, y, u, k;
-      function px_(X, Y, col, a) { g.fillStyle = cs(col, a); g.fillRect(X, Y, 1, 1); }
+      function px_(X, Y, col, a) { if (a != null && a < .5) { if (a < .25 || ((X + Y) & 1)) return; } g.fillStyle = cs(col); g.fillRect(X, Y, 1, 1); }   /* crisp pixel art: no translucent pixels, soft tones become a checker dither */
       /* tail (behind the body): rays alternate bright/translucent */
       var tt = sp.tailType || 'fork', span0 = hh * (tt === 'lunate' ? .75 : tt === 'round' ? .5 : .6) + 1;
       for (x = 0; x < tail; x++) { var fr = (tail - x) / tail, sp2 = Math.round((tt === 'round' ? Math.sin(Math.PI * (x + 1) / (tail + 1)) * 1.1 : fr) * span0), sh = Math.round(flex * (.3 + fr * 1.1)), notch = tt === 'round' ? -1 : (fr > .45 ? Math.round((fr - .45) / .55 * sp2 * .55) : -1);
@@ -43,7 +43,7 @@
           if (x === len - 1) col = mixc(col, OL, .5);
           px_(X, yc + y, col, a);
         }
-        if (len >= 12 && sp.sheen !== false) { var ly = Math.round(yc - r + (2 * r) * .42); if (x > len * .22 && x < len * .78 && (x & 1) === 0) px_(X, ly, HL, .5); }
+        if (len >= 12 && sp.sheen !== false) { var ly = Math.round(yc - r + (2 * r) * .42); if (x > len * .22 && x < len * .78 && (x & 1) === 0) px_(X, ly, HL, .45); }
         if (sp.glow && x > len * .28 && x < len * .86 && ((x + seed) % 3 === 0)) px_(X, yc + Math.round(half * .55), hex(sp.glow), 1);
       }
       /* dorsal fin(s) */

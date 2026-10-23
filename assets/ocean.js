@@ -25,7 +25,7 @@
   function fan(g, cx, cy, h, col, hi) { for (var i = 0; i < h; i++) { var w = Math.round(i * .8) + 1; for (var x = -w; x <= w; x += 2) { g.fillStyle = (x + i) % 4 === 0 ? hi : col; g.fillRect(cx + x, cy - i, 1, 1); } } g.fillStyle = col; g.fillRect(cx, cy, 1, 3); }
 
   SOT.createOcean = function (cv, overlay, spacer) {
-    var g, W, H, S, HZ, SY, BT, worldH, SBH, camMax, cam = 0, camT = 0, kit, wg, items = [], hoverId = null, picking = false, cssW = 800, cssH = 600, DD = 1, T = 0;
+    var g, gf, fcv = document.getElementById('oceanfg'), W, H, S, HZ, SY, BT, worldH, SBH, camMax, cam = 0, camT = 0, kit, wg, items = [], hoverId = null, picking = false, cssW = 800, cssH = 600, DD = 1, T = 0;
     var far, mid, near, kelpB, kelpF, vign, caus, causG, causData, shoals = [], singles = [], snow = [], bubs = [], parts = [], ripples = [], plumes = [];
     var FX = SOT.fx, A = { parts: null, ripples: null }; FX.init(A);
     function surfY(x, t) { var c = FX.chop; return SY + Math.round((1.7 * Math.sin(x * .07 + t * .9) + .9 * Math.sin(x * .13 - t * 1.3) + .5 * Math.sin(x * .31 + t * 2.1)) * c + (c > 1.05 ? (c - 1) * 1.1 * Math.sin(x * .45 - t * 3.3) : 0)); }
@@ -106,7 +106,7 @@
       fps: 120, T: 0, items: items,
       layout: function () {
         cssW = document.documentElement.clientWidth; cssH = window.innerHeight; S = cssW >= 1700 ? 5 : cssW >= 1000 ? 4 : cssW >= 600 ? 3 : 2; W = Math.ceil(cssW / S); H = Math.ceil(cssH / S);
-        cv.width = W; cv.height = H; g = cv.getContext('2d'); g.imageSmoothingEnabled = false; HZ = Math.round(cssH * .33 / S); SY = HZ + 9; kit = new SOT.SkyKit(W, HZ, 9); SBH = Math.min(Math.round(H * .8), 210);
+        cv.width = W; cv.height = H; g = cv.getContext('2d'); g.imageSmoothingEnabled = false; if (fcv) { fcv.width = W; fcv.height = H; gf = fcv.getContext('2d'); gf.imageSmoothingEnabled = false; } else gf = null; HZ = Math.round(cssH * .33 / S); SY = HZ + 9; kit = new SOT.SkyKit(W, HZ, 9); SBH = Math.min(Math.round(H * .8), 210);
         sc.arrange(true);
       },
       arrange: function (rebuild) {
@@ -181,7 +181,7 @@
         g.setTransform(1, 0, 0, 1, 0, -camI);
         /* --- back kelp forest (f .8) --- */
         var ck = Math.round(camFor(.8, true)); if (ck + H > worldH - Math.max(140, kelpMax + 20)) { g.setTransform(1, 0, 0, 1, 0, -ck); this._kelp(g, kelpB, t, 0); g.setTransform(1, 0, 0, 1, 0, -camI); }
-        g.setTransform(1, 0, 0, 1, 0, -camI); FX.monster(g, dt, t, camI, depthF);
+        g.setTransform(1, 0, 0, 1, 0, -camI);
         /* --- life --- */
         this._life(g, dt, t, camI, Lf); FX.food(g, camI, t);
         /* --- seabed (mid) --- */
@@ -191,6 +191,10 @@
         /* --- front kelp --- */
         var cf2 = Math.round(camFor(1.12, true)); if (cf2 + H > worldH - Math.max(120, kelpMax + 20)) { g.setTransform(1, 0, 0, 1, 0, -cf2); this._kelp(g, kelpF, t, 1); }
         g.setTransform(1, 0, 0, 1, 0, -camI);
+        /* --- hand-made sprite layer (own canvas, between the scene and the foreground layer) --- */
+        if (SOT.spr) SOT.spr.render(A, dt, t, camI, depthF);
+        /* --- foreground layer (transparent canvas above the sprites): bottles, surface, rain, particles, near plants, vignette --- */
+        var gm = g; if (gf) { g = gf; g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H); } g.setTransform(1, 0, 0, 1, 0, -camI);
         /* --- bottles --- */
         this._bottles(g, dt, t, camI);
         /* --- surface effects --- */
@@ -201,7 +205,7 @@
         this._particles(g, dt, t, camI);
         /* --- near foreground (f 1.3) + vignette --- */
         var cn = Math.round(camFor(1.3, true)); if (cn + H > worldH - near.height - 4) { g.setTransform(1, 0, 0, 1, 0, -cn); g.drawImage(near, 0, worldH - near.height); g.setTransform(1, 0, 0, 1, 0, 0); }
-        g.globalAlpha = .25 + .75 * depthF; g.drawImage(vign, 0, 0); g.globalAlpha = 1;
+        g.globalAlpha = .25 + .75 * depthF; g.drawImage(vign, 0, 0); g.globalAlpha = 1; g = gm;
       },
       _rays: function (g, camI, t, boost) {
         /* light shafts: each band is a Bayer-dithered patch (coverage steps, not alpha blends) so they read as pixel texture */
@@ -253,7 +257,7 @@
         var v0 = camI - 40, v1 = camI + H + 40, i, j, s, y, Hs = H;
         var dimA = function (yy) { return clamp(1 - (yy - SY) / DD * .3, .7, 1); };
         for (i = 0; i < shoals.length; i++) { s = shoals[i]; s.cw = 17; s.cy = 4; FX.steer(s, dt, t); s.x += s.vx * dt; if (s.vx > 0 && s.x > W + 50) s.x = -50; if (s.vx < 0 && s.x < -50) s.x = W + 50; var sy = s.y + Math.sin(t * .4 + s.ph) * 6;
-          if (sy < v0 - 20 || sy > v1) continue; var fl = s.vx > 0 ? 0 : 1; g.globalAlpha = s.far ? .8 * dimA(sy) : dimA(sy);
+          if (sy < v0 - 20 || sy > v1) continue; var fl = s.vx > 0 ? 0 : 1; g.globalAlpha = 1;
           var br = 1 + .1 * Math.sin(t * .45 + s.ph), ks = s.kind.alt;
           for (j = 0; j < s.fs.length; j++) { var f = s.fs[j]; if (f.v === undefined) f.v = ((f.ph * 997) | 0) % 10 < 3; var sp = ((f.v && ks) ? ks : s.kind)[fl][((t * (7 + f.k * 3) + f.ph * 3) | 0) & 3]; g.drawImage(sp, Math.round(s.x + f.ox * br + Math.sin(t * (.8 + f.k * .6) + f.ph) * 4 + Math.sin(t * 2.1 + f.ph * 2) * 1.2), Math.round(sy + f.oy * br + Math.sin(t * (1.4 + f.k * .5) + f.ph) * 2)); }
           g.globalAlpha = 1; if (s.glow) for (j = 0; j < s.fs.length; j += 2) { var ff = s.fs[j]; if (Math.sin(t * 2 + ff.ph * 3) > .3) { g.fillStyle = 'rgba(144,240,255,.85)'; g.fillRect(Math.round(s.x + ff.ox + (fl ? -1 : 8)), Math.round(sy + ff.oy + 2), 1, 1); } } }
@@ -262,9 +266,9 @@
           y = s.y + (s.t === 'jelly' ? Math.sin(t * .5 + s.ph) * 22 - ((t * 3 + s.ph * 9) % 14) * 0 : Math.sin(t * .35 + s.ph) * (big ? 6 : 4)); if (y < v0 - 30 || y > v1 + 30) continue; var fl2 = s.vx > 0 ? 0 : 1, xx = Math.round(s.x);
           if (s.t === 'turtle') g.drawImage(Lf.turtle[fl2][((t * 2.2 + s.ph) | 0) & 1], xx, Math.round(y));
           else if (s.t === 'seahorse') { var SK = s.k[fl2]; g.drawImage(SK[((t * 1.6 + s.ph) | 0) & 1], xx, Math.round(y)); }
-          else if (s.t === 'puffer') { var PK = SOT.critters.get(), inf = Math.sin(t * .35 + s.ph * 2) > .8, ps = (inf ? PK.puffer2 : PK.puffer)[fl2][((t * 5 + s.ph) | 0) & 1]; g.globalAlpha = dimA(y); g.drawImage(ps, xx, Math.round(y)); g.globalAlpha = 1; }
-          else if (s.t === 'squid') { var pulse2 = Math.max(0, Math.sin(t * 1.5 + s.ph)); s.x += s.vx * dt * pulse2 * 1.4 * (RM ? 0 : 1); var SQ = SOT.critters.get().squid[fl2][pulse2 > .3 ? 1 : 0]; g.globalAlpha = dimA(y) * .95; g.drawImage(SQ, xx, Math.round(y - pulse2 * 3)); g.globalAlpha = 1; if (pulse2 > .2) { g.fillStyle = 'rgba(72,226,255,' + (.4 + pulse2 * .5).toFixed(2) + ')'; g.fillRect(xx + (fl2 ? 18 : 16 - 7 + 5), Math.round(y - pulse2 * 3 + 5), 1, 1); } }
-          else if (s.t === 'tuna') { g.globalAlpha = dimA(y); g.drawImage(s.spr[fl2][((t * 7 + s.ph) | 0) & 3], xx, Math.round(y)); g.globalAlpha = 1; }
+          else if (s.t === 'puffer') { var PK = SOT.critters.get(), inf = Math.sin(t * .35 + s.ph * 2) > .8, ps = (inf ? PK.puffer2 : PK.puffer)[fl2][((t * 5 + s.ph) | 0) & 1]; g.drawImage(ps, xx, Math.round(y)); g.globalAlpha = 1; }
+          else if (s.t === 'squid') { var pulse2 = Math.max(0, Math.sin(t * 1.5 + s.ph)); s.x += s.vx * dt * pulse2 * 1.4 * (RM ? 0 : 1); var SQ = SOT.critters.get().squid[fl2][pulse2 > .3 ? 1 : 0]; g.globalAlpha = 1; g.drawImage(SQ, xx, Math.round(y - pulse2 * 3)); g.globalAlpha = 1; if (pulse2 > .2) { g.fillStyle = 'rgba(72,226,255,' + (.4 + pulse2 * .5).toFixed(2) + ')'; g.fillRect(xx + (fl2 ? 18 : 16 - 7 + 5), Math.round(y - pulse2 * 3 + 5), 1, 1); } }
+          else if (s.t === 'tuna') { g.drawImage(s.spr[fl2][((t * 7 + s.ph) | 0) & 3], xx, Math.round(y)); }
           else if (s.t === 'jelly') { g.globalAlpha = .95; SOT.life.jelly(g, xx, Math.round(y), t, s.ph, s.big); g.globalAlpha = 1; }
           else if (s.t === 'manta') SOT.life.manta(g, xx, Math.round(y), t, s.ph, s.vx > 0 ? 1 : -1);
           else if (s.t === 'whale') { var wc = Lf.whale, wy = Math.round(y), wl = wc.width; for (var cx = 0; cx < wl; cx += 1) { var u = fl2 ? wl - 1 - cx : cx, tf = (1 - u / wl), amp = Math.pow(tf, 2) * 5 * (u > wl * .6 ? 1.4 : .5); var dy = Math.round(Math.sin(t * 1.1 - u * .06 + s.ph) * amp); g.drawImage(wc, u, 0, 1, wc.height, xx + cx - (fl2 ? 0 : 0), wy + dy, 1, wc.height); } if (hash(i, 1, Math.floor(t)) > .93) { } }

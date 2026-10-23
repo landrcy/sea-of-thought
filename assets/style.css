@@ -9,6 +9,7 @@ button, [role=button], .bottle-hit { cursor: url(cursor-hand.png) 8 2, pointer; 
 .sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 canvas { image-rendering: pixelated; image-rendering: crisp-edges; image-rendering: pixelated; }
 #ocean { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; z-index: 0; }
+#sprites, #oceanfg { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; z-index: 0; pointer-events: none; image-rendering: pixelated; }
 #spacer { width: 1px; position: relative; z-index: -1; }
 #overlay { position: fixed; inset: 0; overflow: clip; pointer-events: none; z-index: 2; }
 
@@ -49,8 +50,6 @@ canvas { image-rendering: pixelated; image-rendering: crisp-edges; image-renderi
 .ibtn.sm[data-tip]::after { top: 50%; right: calc(100% + 14px); transform: translate(4px, -50%); } .ibtn.sm:hover[data-tip]::after, .ibtn.sm:focus-visible[data-tip]::after { transform: translate(0, -50%); }
 .ibtn.sm[aria-disabled] { opacity: .55; } .ibtn.sm.pulse canvas { animation: foodpulse .45s steps(5); }
 @keyframes foodpulse { 0% { transform: translateY(0) rotate(0) } 30% { transform: translateY(2px) rotate(-14deg) } 60% { transform: translateY(2px) rotate(12deg) } 100% { transform: none } }
-.monster-hit { position: absolute; left: 0; top: 0; padding: 0; margin: 0; border: 0; background: transparent; pointer-events: auto; will-change: transform; cursor: url(cursor-hand.png) 8 2, pointer; }
-.monster-hit[hidden] { display: none; } .monster-hit:focus { outline: none; } .monster-hit:focus-visible { box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .5); }
 /* modals */
 .modal { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 22px 16px; overflow-y: auto; }
 .modal[hidden] { display: none; }
