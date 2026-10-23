@@ -43,6 +43,14 @@ canvas { image-rendering: pixelated; image-rendering: crisp-edges; image-renderi
 .pscroll [data-tip]:hover::after, .pscroll [data-tip]:focus-visible::after { transform: translate(50%, 0); }
 .x[data-tip]::after { right: 0; top: calc(100% + 14px); bottom: auto; transform: translateY(-4px); } .x[data-tip]:hover::after, .x[data-tip]:focus-visible::after { transform: none; }
 
+/* small icon buttons under the write button: feed the fish, music */
+.ibtn.sm { position: fixed; z-index: 4; right: 24px; padding: 7px; } #food-btn { top: 124px; } #music-btn { top: 176px; }
+.ibtn.sm canvas { width: 24px; height: 24px; image-rendering: pixelated; }
+.ibtn.sm[data-tip]::after { top: 50%; right: calc(100% + 14px); transform: translate(4px, -50%); } .ibtn.sm:hover[data-tip]::after, .ibtn.sm:focus-visible[data-tip]::after { transform: translate(0, -50%); }
+.ibtn.sm[aria-disabled] { opacity: .55; } .ibtn.sm.pulse canvas { animation: foodpulse .45s steps(5); }
+@keyframes foodpulse { 0% { transform: translateY(0) rotate(0) } 30% { transform: translateY(2px) rotate(-14deg) } 60% { transform: translateY(2px) rotate(12deg) } 100% { transform: none } }
+.monster-hit { position: absolute; left: 0; top: 0; padding: 0; margin: 0; border: 0; background: transparent; pointer-events: auto; will-change: transform; cursor: url(cursor-hand.png) 8 2, pointer; }
+.monster-hit[hidden] { display: none; } .monster-hit:focus { outline: none; } .monster-hit:focus-visible { box-shadow: inset 0 0 0 3px rgba(255, 255, 255, .5); }
 /* modals */
 .modal { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; padding: 22px 16px; overflow-y: auto; }
 .modal[hidden] { display: none; }
@@ -53,11 +61,14 @@ canvas { image-rendering: pixelated; image-rendering: crisp-edges; image-renderi
 .dlg > .x { position: absolute; z-index: 5; right: -4px; top: -20px; padding: 5px; }
 .dlg > .x canvas { width: 21px; height: 21px; }
 
-.pscroll { position: relative; display: flex; flex-direction: column; filter: drop-shadow(0 9px 0 rgba(1, 2, 40, .5)); transition: opacity .35s, transform .5s; }
+.pscroll { position: relative; display: flex; flex-direction: column; transition: opacity .35s, transform .5s; }
 .roll { display: block; width: calc(100% + 28px); height: 48px; margin: 0 -14px; image-rendering: pixelated; position: relative; z-index: 2; pointer-events: none; }
-.roll.top { margin-bottom: -6px; } .roll.bottom { margin-top: -6px; }
-.sheetwrap { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .9s cubic-bezier(.6, .02, .2, 1); position: relative; z-index: 1; }
-.pscroll.closed .sheetwrap { grid-template-rows: 0fr; }
+.roll.top { margin-bottom: -6px; filter: drop-shadow(0 5px 0 rgba(1, 2, 40, .3)); } .roll.bottom { margin-top: -6px; filter: drop-shadow(0 9px 0 rgba(1, 2, 40, .5)); transition: transform .9s cubic-bezier(.6, .02, .2, 1); }
+.pscroll.nt .sheetwrap, .pscroll.nt .roll { transition: none !important; }
+/* unfurl = clip + slide only (no height/grid animation, no filter on an animating box): if anything fails, the paper is simply fully shown */
+.sheetwrap { display: grid; grid-template-rows: 1fr; clip-path: inset(0 0 -12px 0); transition: clip-path .9s cubic-bezier(.6, .02, .2, 1); position: relative; z-index: 1; }
+.pscroll.closed .sheetwrap { clip-path: inset(0 0 100% 0); }
+.pscroll.closed .roll.bottom { transform: translateY(calc(-1 * var(--sh, 0px))); }
 .sheet { min-height: 0; overflow: hidden; margin: 0; background: var(--paper, #f3dfae); background-size: 144px 144px; image-rendering: pixelated; box-shadow: inset 6px 0 0 rgba(176, 138, 78, .55), inset -6px 0 0 rgba(176, 138, 78, .55), inset 12px 0 0 rgba(214, 184, 124, .45), inset -12px 0 0 rgba(214, 184, 124, .45); }
 .sheet-in { padding: 14px 34px 18px; color: var(--ink); }
 
@@ -112,6 +123,7 @@ textarea.ink::-webkit-scrollbar-thumb, .m-body::-webkit-scrollbar-thumb { backgr
 
 @media (max-width: 640px) {
   .ibtn.tr { top: 14px; right: 14px; padding: 6px 7px; } .ibtn.tr canvas { width: 64px; height: 44px; }
+  .ibtn.sm { right: 18px; padding: 6px; } .ibtn.sm canvas { width: 22px; height: 22px; } #food-btn { top: 86px; } #music-btn { top: 134px; }
   .sheet-in { padding: 10px 24px 14px; } .tools .quillart { display: none; } .tools { justify-content: flex-end; }
   .tools .count { margin-right: auto; } .ink { font-size: 27px; } .m-title { font-size: 34px; }
   .ibtn.seal canvas { width: 66px; height: 66px; } .ibtn.paper canvas { width: 80px; height: 40px; }
@@ -119,7 +131,7 @@ textarea.ink::-webkit-scrollbar-thumb, .m-body::-webkit-scrollbar-thumb { backgr
 }
 @media (prefers-reduced-motion: reduce) {
   .picking .bottle-hit::after, .toast, .pnote { animation: none; }
-  .ibtn.tr { animation: none; } .dlg, .backdrop, .sheetwrap, .chip, .pscroll { transition: none !important; } .workshop canvas { animation: none; }
+  .ibtn.tr { animation: none; } .ibtn.sm.pulse canvas { animation: none; } .dlg, .backdrop, .sheetwrap, .roll, .chip, .pscroll { transition: none !important; } .workshop canvas { animation: none; }
 }
 
 .wdlg.busy > .x { opacity: 0; pointer-events: none; transition: opacity .2s; }

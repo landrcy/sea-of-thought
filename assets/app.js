@@ -12,6 +12,8 @@
   /* sky: day by default; ?sky=night is a developer preview */
   SOT.setSky(qs.get('sky') === 'night' ? 'night' : 'day'); SOT.sky.d = SOT.sky.target;
 
+  if (SOT.fx && SOT.fx.bindDom) SOT.fx.bindDom();
+
   /* ---------- title: integer pixel scale, fades as you dive ---------- */
   var timg = $('title-img');
   function scaleTitle() { var w = timg.naturalWidth; if (!w) return; var mobile = innerWidth <= 640, k = Math.max(1, Math.floor((mobile ? innerWidth - 24 : Math.min(innerWidth * .7, 900)) / w)); timg.style.width = (w * k) + 'px'; }
@@ -33,7 +35,7 @@
   if (demoN) { var t0 = Date.now(); demoList = []; for (var i = 1; i <= demoN; i++) demoList.push({ id: 'd' + i, n: i, ts: t0 - (demoN - i) * 3600e3 * 5.3, name: i % 3 ? ['Mara', 'Jun', 'Otis', 'Wren', ''][i % 5] : '', msg: DEMO[i % DEMO.length] + (i % 4 === 0 ? ' ' + DEMO[(i + 5) % DEMO.length] : ''), rocks: (i * 7) % 5 === 0 ? 1 + (i % 3) : 0 }); }
 
   /* ---------- ocean + bottle buttons (fixed overlay, positioned by the scene) ---------- */
-  var overlay = $('overlay'), ocean = SOT.createOcean($('ocean'), overlay, $('spacer')), els = {}, lastFocus = null;
+  var overlay = $('overlay'), ocean = SOT.ocean = SOT.createOcean($('ocean'), overlay, $('spacer')), els = {}, lastFocus = null;
   function bottleEl(b) {
     var el = els[b.id]; if (el) return el;
     el = document.createElement('button'); el.type = 'button'; el.className = 'bottle-hit'; var chip = document.createElement('span'), nb = document.createElement('b'), when = document.createElement('span');
@@ -63,12 +65,15 @@
   if (!demoN) { setInterval(function () { if (!document.hidden) load(false); }, 25000); document.addEventListener('visibilitychange', function () { if (!document.hidden) load(false); }); }
 
   /* ---------- generic modal helpers ---------- */
-  function show(m, focusEl, from) { lastFocus = from || document.activeElement; var ps = m.querySelector('.pscroll'); ps.classList.add('closed'); m.classList.remove('open'); m.hidden = false; drawRolls(m); void m.offsetWidth; requestAnimationFrame(function () { m.classList.add('open'); setTimeout(function () { ps.classList.remove('closed'); }, RM ? 0 : 220); }); if (focusEl) focusEl.focus({ preventScroll: true }); }
+  function measure(ps) { var w = ps.querySelector('.sheetwrap'); if (w) ps.style.setProperty('--sh', w.offsetHeight + 'px'); }
+  function show(m, focusEl, from) { lastFocus = from || document.activeElement; var ps = m.querySelector('.pscroll'); ps.classList.add('closed', 'nt'); m.classList.remove('open'); m.hidden = false; drawRolls(m); measure(ps); void m.offsetWidth; ps.classList.remove('nt'); void ps.offsetWidth; requestAnimationFrame(function () { m.classList.add('open'); setTimeout(function () { ps.classList.remove('closed'); }, RM ? 0 : 220); });
+    setTimeout(function () { if (!m.hidden && !m.querySelector('.dlg.busy') && !(m.classList.contains('busy'))) ps.classList.remove('closed'); }, 1800);   // failsafe: never leave the paper rolled up
+    if (focusEl) focusEl.focus({ preventScroll: true }); }
   function hide(m) { m.hidden = true; m.classList.remove('open'); if (lastFocus && lastFocus.focus) lastFocus.focus({ preventScroll: true }); }
   function lockScroll(e) { if (e.target.closest && e.target.closest('textarea,.m-body')) return; e.preventDefault(); }
   ['wheel', 'touchmove'].forEach(function (ev) { document.querySelectorAll('.modal').forEach(function (m) { m.addEventListener(ev, lockScroll, { passive: false }); }); });
   document.addEventListener('click', function (e) { var c = e.target.closest && e.target.closest('[data-close]'); if (c) { var m = c.closest('.modal'); if (m === modal) closeModal(); else if (m === wmodal) closeWrite(); else if (m === rmodal) closeReport(); } });
-  addEventListener('resize', function () { [modal, wmodal, rmodal].forEach(function (m) { if (!m.hidden) drawRolls(m); }); });
+  addEventListener('resize', function () { [modal, wmodal, rmodal].forEach(function (m) { if (!m.hidden) { drawRolls(m); measure(m.querySelector('.pscroll')); } }); });
   document.addEventListener('keydown', function (e) {
     var m = !modal.hidden ? modal : !wmodal.hidden ? wmodal : !rmodal.hidden ? rmodal : null;
     if (!m) { if (e.key === 'Escape' && picking) { setPick(false); delBtn.focus({ preventScroll: true }); } return; }
@@ -88,7 +93,7 @@
   function sorted() { return bottles.slice().sort(function (a, c) { return c.n - a.n; }); }
   function openModal(id, from) { var b = bottles.filter(function (x) { return x.id === id; })[0]; if (!b) return; fill(b); show(modal, modal.querySelector('.x'), from); }
   function closeModal() { hide(modal); try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
-  function step(d) { var L = sorted(), i = L.findIndex(function (x) { return x.id === curId; }), b = L[i + d]; if (b) { var ps = $('rscroll'); ps.classList.add('closed'); setTimeout(function () { fill(b); ps.classList.remove('closed'); }, RM ? 0 : 260); var it = ocean.items.filter(function (x) { return x.id === b.id; })[0]; if (it) ocean.reveal(it); } }
+  function step(d) { var L = sorted(), i = L.findIndex(function (x) { return x.id === curId; }), b = L[i + d]; if (b) { var ps = $('rscroll'); measure(ps); ps.classList.add('closed'); setTimeout(function () { fill(b); ps.classList.remove('closed'); }, RM ? 0 : 260); var it = ocean.items.filter(function (x) { return x.id === b.id; })[0]; if (it) ocean.reveal(it); } }
   $('m-prev').addEventListener('click', function () { step(1); }); $('m-next').addEventListener('click', function () { step(-1); });
 
   /* ---------- write a bottle ---------- */
@@ -118,7 +123,7 @@
     send.disabled = true; msg.readOnly = nameIn.readOnly = true; note.textContent = '';
     var nextN = bottles.reduce(function (m, b) { return Math.max(m, b.n); }, 0) + 1, rk = rocks;
     var p; if (demoN) { var nb = { id: 'new' + nextN, n: nextN, ts: Date.now(), name: nm, msg: text, rocks: rk }; p = Promise.resolve({ bottle: nb, all: bottles.concat([nb]), mode: 'local' }); } else p = api.add({ name: nm, msg: text, rocks: rk }).catch(function () { return null; });
-    wdlg.classList.add('busy'); wscroll.classList.add('closed');   // the paper rolls itself up…
+    wdlg.classList.add('busy'); measure(wscroll); wscroll.classList.add('closed');   // the paper rolls itself up…
     setTimeout(function () {           // …then the workshop takes over
       wscroll.classList.add('rolling'); setTimeout(function () {
         wdlg.classList.add('play'); shop.play(text, async function () {
