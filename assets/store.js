@@ -20,6 +20,8 @@
       .replace(/\n{3,}/g, '\n\n')
       .slice(0, n);
   }
+  // rocks tied to a bottle: integer 0-3 (missing/invalid = 0, keeps older records valid)
+  function rocks(v) { v = Math.round(+v); return v >= 1 ? Math.min(3, v) : 0; }
   function clean(a) {
     var seen = Object.create(null), out = [];
     if (!Array.isArray(a)) return out;
@@ -29,7 +31,7 @@
       var id = str(b.id, 40), ts = +b.ts, n = +b.n, msg = str(b.msg, 280).trim();
       if (!id || seen[id] || !isFinite(ts) || !isFinite(n) || !msg) continue;
       seen[id] = 1;
-      out.push({ id: id, n: n | 0, ts: Math.round(ts), name: str(b.name, 24).replace(/\n/g, ' ').trim(), msg: msg, seed: b.seed === true });
+      out.push({ id: id, n: n | 0, ts: Math.round(ts), name: str(b.name, 24).replace(/\n/g, ' ').trim(), msg: msg, rocks: rocks(b.rocks), seed: b.seed === true });
     }
     return out.sort(function (x, y) { return x.n - y.n || x.ts - y.ts; });
   }
@@ -71,7 +73,7 @@
         if (mode === 'local') l = lRead();
         if (!l.length && seeds && seeds.length) {
           var t = Date.now();
-          l = clean(seeds.map(function (s, i) { return { id: 'seed-' + (i + 1), n: i + 1, ts: t - (seeds.length - i) * 60000, name: s.name, msg: s.msg, seed: true }; }));
+          l = clean(seeds.map(function (s, i) { return { id: 'seed-' + (i + 1), n: i + 1, ts: t - (seeds.length - i) * 60000, name: s.name, msg: s.msg, rocks: s.rocks | 0, seed: true }; }));
           if (mode === 'remote') { try { await rWrite(l); } catch (e) { mode = 'local'; lWrite(l); } } else lWrite(l);
         }
         return l;
@@ -79,7 +81,7 @@
       /* Append one bottle. Merge-on-write: re-read right before writing, merge by id, write,
        * then read back to verify (retry if a concurrent visitor overwrote us). */
       async add(rec) {
-        var mine = { id: uid(), n: 0, ts: Date.now(), name: str(rec.name, 24).replace(/\n/g, ' ').trim(), msg: str(rec.msg, 280).trim(), seed: false };
+        var mine = { id: uid(), n: 0, ts: Date.now(), name: str(rec.name, 24).replace(/\n/g, ' ').trim(), msg: str(rec.msg, 280).trim(), rocks: rocks(rec.rocks), seed: false };
         if (!mine.msg) throw new Error('empty');
         var fresh = [], all = [];
         for (var attempt = 0; attempt < 3; attempt++) {
@@ -104,7 +106,7 @@
         lWrite(merge(lRead(), all));
         return { bottle: mine, all: all.slice(-o.max), mode: 'local' };
       },
-      _clean: clean, _merge: merge, _str: str
+      _clean: clean, _rocks: rocks, _merge: merge, _str: str
     };
   }
   root.SOT = root.SOT || {};
