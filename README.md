@@ -24,9 +24,9 @@ assets/seabed.js     procedural seabed art: big shipwreck, open treasure chest, 
                      temple ruins, statue, stone steps, lighthouse ruin, pier posts, giant clam, whale ribs, hydrothermal vents, rock spires
 assets/critters.js   extra life: seahorse, puffer (inflates), squid (jet pulses), crab sprites; seabed decor (urchins, anemones, sponges, shells, driftwood)
 assets/filter.js     profanity / slur / sexual / threat filter (SOT.filter; also `require`-able in Node)
-assets/extras.js     day/night cycle, rain + lightning storms, fish food, seabirds (procedural gulls painted on the scene's own pixel grid)
-assets/sprites.js    pirate-ship layer: loader, integer re-gridding of the ship sheets onto the scene pixels, snapped drawing, night wash, lantern glow pass
-assets/sprites/      4 transparent pirate-ship sheets + 2 galleon lantern glow masks + manifest.json (pixel art by the site owner's pixel artist)
+assets/extras.js     day/night cycle, rain + lightning storms, fish food, seabird behaviour (floating, flying, diving for fish)
+assets/sprites.js    sprite layer: loader, mirrored sheets, gull drawing at an integer scale, pirate ships re-gridded onto the scene pixels, night wash, glow pass
+assets/sprites/      3 gull sheets + 4 pirate-ship sheets (transparent PNG) + 2 galleon lantern glow masks + manifest.json (pixel art by the site owner's pixel artist)
 assets/music.js      the music button + <audio loop> playback (real recorded track, fade-in, mute remembered)
 assets/music/        aquaria.ogg + aquaria.mp3 (CC0 track) and CREDITS.txt
 assets/ocean.js      the dive: eased camera, depth gradient, surface/waves/foam, light shafts, caustics, marine snow,
@@ -92,14 +92,14 @@ Depth gradients are drawn with deliberate ordered-dither patterns instead of smo
 
 The same threshold maps are used for the vignette (4 alpha steps), the glow above the seabed, the light shafts (Bayer coverage patches, not alpha blends) and the caustics. Everything is pre-rendered once into offscreen canvases (rebuilt only on resize), so the per-frame cost is a few `drawImage` calls. Light shafts use 17 cached 4x4 pattern tiles.
 
-## Pirate ships and gulls
+## Gulls and pirate ships
 
-**One pixel grid.** Everything on screen is drawn on the scene's own logical pixels (one art pixel = 3-5 css px, the same block as the ocean, seabed and fish). Gulls are painted procedurally in `extras.js` at 1 art px = 1 scene px; the ships are the owner's hand-made art, box-reduced by an integer factor (dominant colour per block, silhouette re-outlined with a darker tone) so a ship pixel is also exactly one scene pixel. Both are drawn at integer coordinates (no sub-pixel positions, rotation or smoothing; dives use pre-rasterised angled poses). `assets/sprites/` holds the ship sheets (frames side by side in one PNG per sprite, anchors and loop orders in `manifest.json`, mirrored in `assets/sprites.js`); fish stay procedural. Ships go on their own canvas (`#sprites`), a second transparent canvas (`#oceanfg`) above it carries the bottles, surface foam, rain, particles, near plants and vignette, so bottles still float in front of everything.
+**Sprites** (`assets/sprites/`, frames side by side in one PNG per sprite, anchors and loop orders in `manifest.json`, mirrored in `assets/sprites.js`) are the owner's hand-made gulls and pirate ships only. Fish stay procedural and are drawn on the scene's own pixel grid (one art pixel = 3-5 css px, crisp, no translucent pixels). **Gulls** are the 36x30 sprite frames drawn on their own canvas (`#sprites`) in CSS pixels at a whole-number scale (3 px per sprite pixel on large screens, 2 or 1 on smaller ones), `image-rendering: pixelated`, mirrored for the other direction, at whole-pixel positions. **Ships** are box-reduced by an integer factor (dominant colour per block, silhouette re-outlined with a darker tone) so a ship pixel is exactly one scene pixel, and drawn at whole scene-pixel positions. A second transparent canvas (`#oceanfg`) above carries the bottles, surface foam, rain, particles, near plants and vignette, so bottles still float in front of everything.
 
-- **Gulls:** procedural, outlined with a darker tone, checker-dithered belly and wing shading, same Ocean Blue ramp as the rest; float / flap (4-frame loop) / angled dive / underwater / rise poses, mirrored for the other direction, driven by the gull states in `extras.js`.
+- **Gulls:** float (2 frames, loop 0,1) / fly (3 frames, loop 0,1,2,1) / dive (2 frames) sheets, driven by the gull states in `extras.js` (float on the waves, glide, dive on a fish school, swim under, rise, carry the catch); frame advance is delta-time based.
 - **Pirate ships:** sloop small/large, galleon small/large sail by on the surface now and then (about one every 2 minutes), anchored at the hull centre on the waterline and bobbing in whole scene pixels with the wave line; the galleon lanterns glow additively at night.  `?ship=1` shows one right away and keeps sending them; `?ship=sloop_small|sloop_large|galleon_small|galleon_large` picks the model.
-- **Light:** one wash darkens ships at night, in rain/storms and with depth, like the scene around them. Everything is delta-time driven and frozen under `prefers-reduced-motion`.
-- **Weight:** about 40 KB of PNG for the 4 sheets + 2 glow masks; the whole site is well under 8 MB.
+- **Light:** one wash darkens gulls and ships at night, in rain/storms and with depth, like the scene around them. Everything is delta-time driven and frozen under `prefers-reduced-motion`.
+- **Weight:** about 50 KB of PNG for the 7 sheets + 2 glow masks; the whole site is well under 8 MB.
 
 ## Shared storage
 
