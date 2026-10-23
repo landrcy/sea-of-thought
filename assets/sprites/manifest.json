@@ -7,64 +7,8 @@
   "alpha": "binary (0/255)",
   "palette": "Ocean Blue Serenity #03045E #023E8A #0077B6 #0096C7 #00B4D8 #48CAE4 #90E0EF #ADE8F4 #CAF0F8 + creature accents"
  },
- "notes": "Each sheet = frames side by side, frame_width x frame_height each. anchor = [x,y] pixel inside a frame. *_glow.png = same layout, only the emissive pixels (use for additive/bloom overlay). (Trimmed: only the gulls and pirate ships are used by the site; fish are drawn procedurally.)",
+ "notes": "Each sheet = frames side by side, frame_width x frame_height each. anchor = [x,y] pixel inside a frame. *_glow.png = same layout, only the emissive pixels (use for additive/bloom overlay). (Trimmed: only the pirate ships are used by the site; gulls and fish are drawn procedurally on the scene grid.)",
  "sprites": [
-  {
-   "name": "seagull_float",
-   "category": "gull",
-   "file": "sprites/seagull_float.png",
-   "frame_width": 36,
-   "frame_height": 30,
-   "frame_count": 2,
-   "anchor": [
-    18,
-    15
-   ],
-   "facing": "right",
-   "notes": "Sitting on the water, wings folded; 2-frame head bob.",
-   "loop": [
-    0,
-    1
-   ]
-  },
-  {
-   "name": "seagull_fly",
-   "category": "gull",
-   "file": "sprites/seagull_fly.png",
-   "frame_width": 36,
-   "frame_height": 30,
-   "frame_count": 3,
-   "anchor": [
-    18,
-    15
-   ],
-   "facing": "right",
-   "notes": "Wing flap: up, mid, down (loop 0,1,2,1 for a smooth flap).",
-   "loop": [
-    0,
-    1,
-    2,
-    1
-   ]
-  },
-  {
-   "name": "seagull_dive",
-   "category": "gull",
-   "file": "sprites/seagull_dive.png",
-   "frame_width": 36,
-   "frame_height": 30,
-   "frame_count": 2,
-   "anchor": [
-    18,
-    15
-   ],
-   "facing": "right",
-   "notes": "Nose-down plunge dive, wings swept back; 2 frames of wing/tail jitter.",
-   "loop": [
-    0,
-    1
-   ]
-  },
   {
    "name": "sloop_small",
    "category": "ship",
