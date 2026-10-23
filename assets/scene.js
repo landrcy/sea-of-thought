@@ -30,7 +30,7 @@
   SOT.px = { parse: parse, mix3: mix3, css: css, P: P, pc: pc, BAY: BAY, rng: rng, hash: hash, mkCanvas: mkCanvas, gradCanvas: gradCanvas, disc: disc, line: line, sprCanvas: sprCanvas };
 
   /* ---------- bottle sprite (28x11, lying on its side like the reference photo) ---------- */
-  var TINTS = [[190, 232, 238], [168, 232, 178], [240, 206, 130], [160, 196, 250], [242, 178, 206]];
+  var TINTS = [[190, 236, 238], [168, 228, 184], [150, 226, 222], [160, 202, 240], [132, 206, 168]];
   SOT.TINT_COUNT = TINTS.length;
   var BW = 28, BH = 11;
   function inside(x, y) {
@@ -54,10 +54,10 @@
       if (opt.hl) { // highlight-only layer (drawn over the scroll so glass looks glassy)
         if (edge) continue;
         var topInner = !at(x, y - 1) ? false : !at(x, y - 2);
-        if (topInner && x >= 3 && x <= 14) { g.fillStyle = 'rgba(255,214,120,.95)'; g.fillRect(x, y, 1, 1); }
+        if (topInner && x >= 3 && x <= 14) { g.fillStyle = 'rgba(255,255,255,.92)'; g.fillRect(x, y, 1, 1); }
         else if (x === 1 && y >= 3 && y <= 7) { g.fillStyle = 'rgba(255,255,255,.8)'; g.fillRect(x, y, 1, 1); }
         else if (y === 3 && x >= 4 && x <= 9) { g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(x, y, 1, 1); }
-        else if (y === 3 && x >= 18 && x <= 22) { g.fillStyle = 'rgba(255,236,170,.9)'; g.fillRect(x, y, 1, 1); }
+        else if (y === 3 && x >= 18 && x <= 22) { g.fillStyle = 'rgba(224,252,255,.9)'; g.fillRect(x, y, 1, 1); }
         continue;
       }
       g.fillStyle = edge ? out : (!at(x, y + 1) || !at(x, y + 2) && y > 6 ? deep : glass);
@@ -104,9 +104,9 @@
   SOT.bottle = { W: BW, H: BH, sprite: bottleSprite, draw: drawBottle, tints: TINTS };
 
   /* ---------- sky kit: gradient, stars, sun, clouds, shooting star ---------- */
-  var SKY_DUSK = ['#0a1030', '#141a4a', '#2a1f66', '#4a2878', '#7a3080', '#b03a78', '#e0525e', '#ff7d4a', '#ffa95c', '#ffd27a'];
-  var SKY_DAY = ['#1c5fb0', '#2a74c4', '#3a8bd6', '#55a3e2', '#78baec', '#98cdf3', '#b4def7', '#cdeaf9', '#e0f4fb', '#f2fbff'];
-  var CL = { top: P('#ffd09a', '#ffffff'), body: P('#d8628a', '#e8f3fb'), shade: P('#7a3a86', '#b4cfe6') };
+  var SKY_DUSK = ['#030a1c', '#061230', '#0a1a40', '#0e2250', '#122a5c', '#173468', '#1c3e74', '#224880', '#2a528a', '#335c94'];
+  var SKY_DAY = ['#2f80d8', '#4a96e0', '#66aae8', '#82bcee', '#9ccaf2', '#b4d8f5', '#cbe5f8', '#ddeffb', '#eaf6fd', '#f5fbff'];
+  var CL = { top: P('#5a7aa8', '#ffffff'), body: P('#33507e', '#f0f7fd'), shade: P('#1c3260', '#c4d8ea') };
   var CLOUD_SHAPES = [[[4, 8], [1, 14], [0, 18], [2, 14]], [[2, 6], [0, 10], [1, 8]], [[5, 7], [2, 13], [0, 20], [1, 17], [4, 10]]];
   function SkyKit(W, HZ, seed) {
     var r = rng(seed || 5), self = this;
@@ -115,8 +115,8 @@
     this.stars = []; for (var i = 0; i < Math.round(W * HZ / 70); i++) this.stars.push({ x: (r() * W) | 0, y: (r() * HZ * .78) | 0, ph: r() * 6, big: r() > .86 });
     this.clouds = []; for (i = 0; i < Math.max(3, Math.round(W / 70)); i++) this.clouds.push({ x: r() * W, y: HZ * (.14 + r() * .5) | 0, sh: CLOUD_SHAPES[i % 3], sp: 1.5 + r() * 3.5 });
     this.shoot = { on: false, t: 0, next: 3 + r() * 4, x: 0, y: 0 };
-    this.sunX = function () { return W * (.62 + .1 * sky.d); };
-    this.sunY = function () { return HZ - 1 - sky.d * (HZ * .62); };
+    this.sunX = function () { return W * .7; };
+    this.sunY = function () { return Math.round(HZ * .3); };
     this.draw = function (g, T, dt) {
       var d = sky.d; g.drawImage(self.dusk, 0, 0); if (d > .01) { g.globalAlpha = d; g.drawImage(self.day, 0, 0); g.globalAlpha = 1; }
       if (d < .98) { // stars
@@ -127,13 +127,13 @@
         if (!ss.on && ss.next <= 0 && !RM) { ss.on = true; ss.t = 0; ss.x = W * (.35 + Math.random() * .6); ss.y = HZ * (.04 + Math.random() * .25); }
         if (ss.on) { ss.t += dt; var k = ss.t / .9; if (k >= 1) { ss.on = false; ss.next = 5 + Math.random() * 7; } else {
           var hx = ss.x - k * W * .42, hy = ss.y + k * HZ * .5, fade = (1 - d) * Math.sin(k * Math.PI);
-          for (var j = 0; j < 14; j++) { g.fillStyle = 'rgba(255,248,220,' + (fade * (1 - j / 14)).toFixed(2) + ')'; g.fillRect(Math.round(hx + j * 1.7), Math.round(hy - j * .85), 1, 1); }
+          for (var j = 0; j < 14; j++) { g.fillStyle = 'rgba(235,245,255,' + (fade * (1 - j / 14)).toFixed(2) + ')'; g.fillRect(Math.round(hx + j * 1.7), Math.round(hy - j * .85), 1, 1); }
           g.fillStyle = 'rgba(255,255,255,' + fade.toFixed(2) + ')'; g.fillRect(Math.round(hx) - 1, Math.round(hy), 2, 2); } }
       }
       // sun + glow
-      var sx = Math.round(self.sunX()), sy = Math.round(self.sunY()), rr = Math.round(8 - 3 * d);
-      var gl = [[rr + 26, .08], [rr + 17, .13], [rr + 10, .2], [rr + 4, .32]]; for (i = 0; i < gl.length; i++) disc(g, sx, sy, gl[i][0], pc(P('#ffb060', '#fff2b0'), gl[i][1] * (1 - d * .4)));
-      disc(g, sx, sy, rr, pc(P('#ffd27a', '#fff6c8'))); disc(g, sx, sy, rr - 2, pc(P('#ffeaa8', '#ffffff')));
+      var sx = Math.round(self.sunX()), sy = Math.round(self.sunY()), rr = Math.round(5 + 0 * d);
+      var gl = [[rr + 26, .08], [rr + 17, .13], [rr + 10, .2], [rr + 4, .32]]; for (i = 0; i < gl.length; i++) disc(g, sx, sy, gl[i][0], pc(P('#9cc0e8', '#ffffff'), gl[i][1] * (1 - d * .45)));
+      disc(g, sx, sy, rr, pc(P('#dfe9f5', '#ffffff'))); disc(g, sx, sy, rr - 2, pc(P('#c8d8ec', '#f4fbff'))); if (d < .5) { g.fillStyle = 'rgba(150,170,200,' + (1 - d * 2).toFixed(2) + ')'; g.fillRect(sx - 2, sy - 1, 1, 1); g.fillRect(sx + 1, sy + 1, 2, 1); g.fillRect(sx, sy - 3, 1, 1); }
       // clouds
       for (i = 0; i < self.clouds.length; i++) { var c = self.clouds[i]; c.x += c.sp * dt; if (c.x > W + 24) c.x = -26;
         for (var row = 0; row < c.sh.length; row++) { var rw = c.sh[row]; g.fillStyle = pc(row === 0 ? CL.top : row === c.sh.length - 1 ? CL.shade : CL.body, .93); g.fillRect(Math.round(c.x) + rw[0], c.y + row, rw[1], 1); } }
@@ -227,7 +227,7 @@
   function pxScale(w, kind) { if (kind === 'hero') return w >= 1000 ? 5 : w >= 600 ? 4 : 3; return w >= 1000 ? 4 : w >= 600 ? 3 : 2; }
   SOT.pxScale = pxScale;
 
-  /* ---------- HERO: sunset looking out over the sea (perspective waves) ---------- */
+  /* ---------- HERO: daylight looking out over the sea (perspective waves) ---------- */
   SOT.createHero = function (cv) {
     var host = cv.parentNode, g, W, H, HZ, S, kit, seaDusk, seaDay, glow = [];
     var sc = {
@@ -235,25 +235,25 @@
       layout: function () {
         var cw = host.clientWidth || 800, ch = host.clientHeight || 600; S = pxScale(cw, 'hero'); W = Math.ceil(cw / S); H = Math.ceil(ch / S); cv.width = W; cv.height = H; g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
         HZ = Math.round(H * .52); kit = new SkyKit(W, HZ, 3);
-        seaDusk = gradCanvas(W, H - HZ, ['#c0587a', '#8a4a92', '#4a3a8c', '#223a86', '#12286a', '#0b1c4e'], 0, H - HZ); seaDay = gradCanvas(W, H - HZ, ['#9adcf0', '#58b8e8', '#3a98d8', '#2878bc', '#1a5898', '#124078'], 0, H - HZ);
+        seaDusk = gradCanvas(W, H - HZ, ['#0e3a58', '#0a2c4c', '#082240', '#061a34', '#04122a', '#030c1e'], 0, H - HZ); seaDay = gradCanvas(W, H - HZ, ['#5ad0e0', '#2fb0d0', '#1f8cc0', '#1668a8', '#0f4a88', '#0a3568'], 0, H - HZ);
       },
       render: function (dt, T) {
         kit.draw(g, T, dt);
         g.drawImage(seaDusk, 0, HZ); if (sky.d > .01) { g.globalAlpha = sky.d; g.drawImage(seaDay, 0, HZ); g.globalAlpha = 1; }
         var sunX = kit.sunX(), K = 16, sh = H - HZ, i, x;
         // sun path glitter
-        for (i = 0; i < 90; i++) { var z = hash(i, 7, 1), y = HZ + 1 + Math.pow(z, 1.5) * sh, wd = 6 + z * W * .22, px = Math.round(sunX + (hash(i, 9, 2) - .5) * wd); if (hash(i, Math.floor(T * 3), 5) > .55) { g.fillStyle = pc(P('rgba(255,224,150,.95)'.length ? '#ffe096' : '#fff', '#ffffff'), (1 - sky.d * .5) * .9); g.fillRect(px, Math.round(y), 1 + (z > .6 ? 1 : 0), 1); } }
+        for (i = 0; i < 90; i++) { var z = hash(i, 7, 1), y = HZ + 1 + Math.pow(z, 1.5) * sh, wd = 6 + z * W * .22, px = Math.round(sunX + (hash(i, 9, 2) - .5) * wd); if (hash(i, Math.floor(T * 3), 5) > .55) { g.fillStyle = pc(P('#9cc4e4', '#ffffff'), .85); g.fillRect(px, Math.round(y), 1 + (z > .6 ? 1 : 0), 1); } }
         // perspective wave rows (parallax: far slow & thin, near big & fast)
         for (i = 0; i < K; i++) {
           var zz = ((i + T * .22) % K) / K, yy = Math.round(HZ + 2 + Math.pow(zz, 2.1) * (sh - 3)), thick = zz > .55 ? 2 : 1, seg = Math.round(3 + zz * 22), gap = Math.round(2 + zz * 10), off = Math.round(Math.sin(i * 2.3 + T * .5 * (.3 + zz)) * seg + T * (4 + zz * 18)) % (seg + gap);
-          var near = P('#5a7ac0', '#d8f2ff'), far = P('#ffb27a', '#c0e8f8'), col = mix3(mix3(far.a, near.a, zz), mix3(far.b, near.b, zz), sky.d);
-          for (x = -off; x < W; x += seg + gap) { var lit = Math.abs(x + seg / 2 - sunX) < 6 + zz * W * .16; g.fillStyle = lit ? pc(P('#ffe09a', '#ffffff'), .95) : css(col, .55 + zz * .3); g.fillRect(x, yy, seg, thick); if (zz > .6 && hash(x, i, Math.floor(T * 2)) > .6) { g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(x + 1, yy - 1, Math.max(2, seg >> 1), 1); } }
+          var near = P('#2a5a8c', '#e8fbff'), far = P('#3a6a98', '#9fe6f0'), col = mix3(mix3(far.a, near.a, zz), mix3(far.b, near.b, zz), sky.d);
+          for (x = -off; x < W; x += seg + gap) { var lit = Math.abs(x + seg / 2 - sunX) < 6 + zz * W * .16; g.fillStyle = lit ? pc(P('#9cc4e4', '#ffffff'), .95) : css(col, .55 + zz * .3); g.fillRect(x, yy, seg, thick); if (zz > .6 && hash(x, i, Math.floor(T * 2)) > .6) { g.fillStyle = 'rgba(255,255,255,.85)'; g.fillRect(x + 1, yy - 1, Math.max(2, seg >> 1), 1); } }
         }
         // the big bobbing bottle (decorative)
         var bx = Math.round(W * (W < 200 ? .62 : .7) - 14), by = Math.round(HZ + sh * .5 + Math.sin(T * 1.1) * 1.5), slope = Math.sin(T * .9) * .14 - .08;
-        disc(g, bx + 14, by + 6, 17, 'rgba(255,200,110,.12)'); disc(g, bx + 14, by + 6, 11, 'rgba(255,214,130,.16)');
+        disc(g, bx + 14, by + 6, 17, 'rgba(255,255,255,.1)'); disc(g, bx + 14, by + 6, 11, 'rgba(255,255,255,.14)');
         drawBottle(g, 0, bx, by - 3, slope, false);
-        for (x = 0; x < 28; x++) { if (hash(x, 3, Math.floor(T * 3)) > .5) { g.fillStyle = 'rgba(255,220,140,.8)'; g.fillRect(bx + x, by + 10 + (x & 1), 1, 1); } }
+        for (x = 0; x < 28; x++) { if (hash(x, 3, Math.floor(T * 3)) > .5) { g.fillStyle = 'rgba(220,245,255,.8)'; g.fillRect(bx + x, by + 10 + (x & 1), 1, 1); } }
         g.fillStyle = 'rgba(255,255,255,.7)'; for (x = -3; x < 32; x += 3) if (hash(x, 11, Math.floor(T * 2)) > .4) g.fillRect(bx + x, by + 8, 2, 1);
         // dark fade into the dive
         for (i = 0; i < 18; i++) { g.fillStyle = 'rgba(8,24,64,' + (i / 18 * .7).toFixed(3) + ')'; g.fillRect(0, H - 18 + i, W, 1); }
@@ -262,7 +262,7 @@
     return register(sc, host);
   };
 
-  /* ---------- SEA: cross-section — sunset sky, parallax waves, bottles, underwater, seabed ---------- */
+  /* ---------- SEA: cross-section — daylight sky, parallax waves, bottles, underwater, seabed ---------- */
   SOT.createSea = function (cv, overlay, opts) {
     var host = cv.parentNode, g, W, H, S, HZ, SY, BT, kit, wg, wgDusk, wgDay, seabed, fish, bubbles, kelp, items = [], splashes = [], ripples = [], cssW = 800, onPick = opts && opts.onPick, hoverId = null;
     function surfY(x, T) { return SY + Math.round(1.7 * Math.sin(x * .07 + T * .9) + .9 * Math.sin(x * .13 - T * 1.3)); }
@@ -275,7 +275,7 @@
       layout: function () {
         var cw = host.clientWidth || 800, ch = host.clientHeight || 700; cssW = cw; S = pxScale(cw, 'sea'); W = Math.ceil(cw / S); H = Math.ceil(ch / S); cv.width = W; cv.height = H; g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
         HZ = Math.round((cw >= 700 ? 285 : 245) / S); SY = HZ + 9; BT = H - Math.round(150 / S); kit = new SkyKit(W, HZ, 9);
-        var wh = H - (SY - 4), stopsD = ['#3f86b8', '#2c66a4', '#1e4c90', '#143a78', '#0d2a5c', '#081c44'], stopsY = ['#58c6e4', '#34a0d4', '#2282c0', '#1964a4', '#124c88', '#0c386c'];
+        var wh = H - (SY - 4), stopsD = ['#0e4a68', '#0a3a5a', '#082c4c', '#061f3a', '#041530', '#030e24'], stopsY = ['#58d6e0', '#34b4d6', '#2090c4', '#1670a8', '#105488', '#0a3c6c'];
         wgDusk = gradCanvas(W, wh, stopsD, 0, wh * .95); wgDay = gradCanvas(W, wh, stopsY, 0, wh * .95);
         seabed = buildSeabed(W, H, BT - 6, 21, S === 2 ? .8 : 1); kelp = makeKelp(W, H, Math.max(5, Math.round(W / 38)), 4);
         var r = rng(17); fish = makeFish(W, SY + 26, BT - 14, r); bubbles = makeBubbles(W, SY, H, Math.max(14, Math.round(W / 9)), r);
@@ -302,18 +302,18 @@
         var i, x, b;
         kit.draw(g, T, dt);
         // distant sea bands (parallax: slow far, faster near)
-        [[HZ, 2.0, .35, P('#6a3a86', '#5aa8dc'), 0], [HZ + 4, 1.6, .55, P('#8a4a90', '#4a98d4'), 2]].forEach(function (L, li) {
+        [[HZ, 2.0, .35, P('#1a4a78', '#5ab8e0'), 0], [HZ + 4, 1.6, .55, P('#143c68', '#3aa6d8'), 2]].forEach(function (L, li) {
           var yb = L[0]; for (x = 0; x < W; x++) { var yy = yb + Math.round(Math.sin(x * (.05 + li * .03) + T * L[2] * (li ? -1.2 : 1) + li) * L[1]); g.fillStyle = pc(L[3]); g.fillRect(x, yy, 1, SY - yy + 2);
-            if (hash(x + li * 7, yy, Math.floor(T * 1.5)) > .93) { g.fillStyle = pc(P('#ffdf9a', '#ffffff'), .8); g.fillRect(x, yy, 1, 1); } } });
+            if (hash(x + li * 7, yy, Math.floor(T * 1.5)) > .93) { g.fillStyle = pc(P('#9cc4e4', '#ffffff'), .8); g.fillRect(x, yy, 1, 1); } } });
         // sunlit glints on far sea
-        var sx = kit.sunX(); for (i = 0; i < 26; i++) { var gx = Math.round(sx + (hash(i, 5, 1) - .5) * 40), gy = HZ + 1 + ((hash(i, 6, 1) * 8) | 0); if (hash(i, Math.floor(T * 3), 9) > .5) { g.fillStyle = pc(P('#ffe49a', '#ffffff'), .9); g.fillRect(gx, gy, 1 + (i & 1), 1); } }
+        var sx = kit.sunX(); for (i = 0; i < 26; i++) { var gx = Math.round(sx + (hash(i, 5, 1) - .5) * 40), gy = HZ + 1 + ((hash(i, 6, 1) * 8) | 0); if (hash(i, Math.floor(T * 3), 9) > .5) { g.fillStyle = pc(P('#9cc4e4', '#ffffff'), .9); g.fillRect(gx, gy, 1 + (i & 1), 1); } }
         // main water body + surface
         drawWaterCols(0, W, 0, 0, T, true);
-        for (x = 0; x < W; x++) { var ys = surfY(x, T); g.fillStyle = pc(P('#ffd9a0', '#e4fbff'), .95); g.fillRect(x, ys, 1, 1);
+        for (x = 0; x < W; x++) { var ys = surfY(x, T); g.fillStyle = pc(P('#7ac0d8', '#e4fbff'), .95); g.fillRect(x, ys, 1, 1);
           var cr = ys < surfY(x - 1, T) + 1 && ys <= surfY(x + 1, T) && ys < SY - 1; if (cr || (hash(x, Math.floor(T * 1.2), 4) > .96)) { g.fillStyle = 'rgba(255,255,255,.95)'; g.fillRect(x - 1, ys - 1, 3, 1); g.fillRect(x, ys, 1, 1); g.fillStyle = 'rgba(255,255,255,.5)'; g.fillRect(x, ys + 1, 2, 1); }
-          if (Math.abs(x - sx) < 34 && hash(x, Math.floor(T * 4), 8) > .6) { g.fillStyle = pc(P('#fff0b8', '#ffffff'), .9 - sky.d * .4); g.fillRect(x, ys + 1, 1, 1); } }
+          if (Math.abs(x - sx) < 34 && hash(x, Math.floor(T * 4), 8) > .6) { g.fillStyle = pc(P('#bcd8f0', '#ffffff'), .9 - sky.d * .4); g.fillRect(x, ys + 1, 1, 1); } }
         // god-rays + deep layers
-        drawRays(g, W, SY + 1, BT, T, Math.max(5, Math.round(W / 40)), sky.d > .5 ? '230,250,255' : '255,226,160', .16);
+        drawRays(g, W, SY + 1, BT, T, Math.max(5, Math.round(W / 40)), sky.d > .5 ? '230,250,255' : '140,190,230', .16);
         // submerged bottles
         for (i = 0; i < items.length; i++) { b = items[i]; if (!b.deep) continue; sc.step(b, dt, T);
           var by = Math.round(b.dy + Math.sin(T * .7 + b.ph) * 2.5), bxx = Math.round(b.x + Math.sin(T * .35 + b.ph) * 5); b.cx = bxx + 14; b.cy = by + 5; b.top = by; b.left = bxx; drawBottle(g, b.tint, bxx, by, Math.sin(T * .5 + b.ph) * .12, true); if (hoverId === b.id) sc.outline(bxx, by); }
@@ -323,10 +323,10 @@
         for (i = 0; i < items.length; i++) { b = items[i]; if (b.deep) continue; sc.step(b, dt, T);
           var cx = Math.round(b.x + 14), sY = surfY(cx, T), slope = (surfY(cx + 7, T) - surfY(cx - 7, T)) / 14, bob = Math.sin(T * 1.3 + b.ph) * .8; var yy2 = b.dropping ? Math.round(b.y) : Math.round(sY - 7 + bob);
           b.cx = cx; b.cy = yy2 + 5; b.top = yy2; b.left = Math.round(b.x);
-          if (!b.dropping) { disc(g, cx, yy2 + 6, 15, 'rgba(255,200,110,' + (.07 * (1 - sky.d * .7)).toFixed(3) + ')'); }
+          if (!b.dropping) { disc(g, cx, yy2 + 6, 15, 'rgba(255,255,255,' + (.07 * (1 - sky.d * .4)).toFixed(3) + ')'); }
           drawBottle(g, b.tint, Math.round(b.x), yy2, slope * .9 + Math.sin(T * .8 + b.ph) * .05, false);
           if (hoverId === b.id) sc.outline(Math.round(b.x), yy2);
-          if (!b.dropping) { drawWaterCols(Math.round(b.x), Math.round(b.x) + 28, 3, 8, T, false); for (x = 0; x < 28; x++) { var wy = surfY(Math.round(b.x) + x, T) + 3; g.fillStyle = 'rgba(255,255,255,.55)'; if (hash(x, b.n, Math.floor(T * 2)) > .5) g.fillRect(Math.round(b.x) + x, wy, 1, 1); if (hash(x, b.n, Math.floor(T * 3) + 3) > .55) { g.fillStyle = pc(P('#ffd27a', '#ffffff'), .8); g.fillRect(Math.round(b.x) + x, wy + 2 + (x & 1), 1, 1); } } }
+          if (!b.dropping) { drawWaterCols(Math.round(b.x), Math.round(b.x) + 28, 3, 8, T, false); for (x = 0; x < 28; x++) { var wy = surfY(Math.round(b.x) + x, T) + 3; g.fillStyle = 'rgba(255,255,255,.55)'; if (hash(x, b.n, Math.floor(T * 2)) > .5) g.fillRect(Math.round(b.x) + x, wy, 1, 1); if (hash(x, b.n, Math.floor(T * 3) + 3) > .55) { g.fillStyle = pc(P('#9ad0f0', '#ffffff'), .8); g.fillRect(Math.round(b.x) + x, wy + 2 + (x & 1), 1, 1); } } }
         }
         // ripples + splashes
         for (i = ripples.length - 1; i >= 0; i--) { var rp = ripples[i]; rp.r += dt * 26; rp.a -= dt * 1.1; if (rp.a <= 0) { ripples.splice(i, 1); continue; } g.fillStyle = 'rgba(255,255,255,' + (rp.a * .7).toFixed(2) + ')'; g.fillRect(Math.round(rp.x - rp.r), surfY(Math.round(rp.x), T) + 1, 2, 1); g.fillRect(Math.round(rp.x + rp.r), surfY(Math.round(rp.x), T) + 1, 2, 1); g.fillRect(Math.round(rp.x - rp.r * .6), surfY(Math.round(rp.x), T) + 2, Math.round(rp.r * 1.2), 1); }
@@ -357,11 +357,11 @@
     var sc = {
       fps: 20, T: 0,
       layout: function () { var cw = window.innerWidth, ch = window.innerHeight; S = cw >= 1000 ? 5 : cw >= 600 ? 4 : 3; W = Math.ceil(cw / S); H = Math.ceil(ch / S); cv.width = W; cv.height = H; g = cv.getContext('2d'); g.imageSmoothingEnabled = false;
-        wd = gradCanvas(W, H, ['#12427c', '#0d3366', '#0a2850', '#081d40', '#061630'], 0, H); wg = gradCanvas(W, H, ['#1e6ea8', '#165a94', '#0f4678', '#0a3260', '#07244a'], 0, H);
+        wd = gradCanvas(W, H, ['#0a2a4a', '#082240', '#061a34', '#04122a', '#030c1e'], 0, H); wg = gradCanvas(W, H, ['#1e8ab8', '#1670a4', '#105a8c', '#0b4474', '#07305a'], 0, H);
         var r = rng(31); fish = makeFish(W, H * .2, H * .8, r).slice(0, 4); bub = makeBubbles(W, 0, H, Math.round(W / 8), r); },
       render: function (dt, T) {
-        g.drawImage(wd, 0, 0); if (sky.d > .01) { g.globalAlpha = sky.d * .55; g.drawImage(wg, 0, 0); g.globalAlpha = 1; }
-        drawRays(g, W, 0, H, T, Math.max(5, Math.round(W / 36)), sky.d > .5 ? '200,240,255' : '255,226,160', .1);
+        g.drawImage(wd, 0, 0); if (sky.d > .01) { g.globalAlpha = sky.d * .9; g.drawImage(wg, 0, 0); g.globalAlpha = 1; }
+        drawRays(g, W, 0, H, T, Math.max(5, Math.round(W / 36)), sky.d > .5 ? '220,250,255' : '130,180,220', .1);
         g.globalAlpha = .45; drawFish(g, fish, W, dt, T); g.globalAlpha = 1; drawBubbles(g, bub, W, -4, H + 4, dt, T);
       }
     };

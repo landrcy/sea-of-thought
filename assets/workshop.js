@@ -9,8 +9,8 @@
   SOT.createWorkshop = function (cv) {
     var g = cv.getContext('2d'), host = cv.parentNode; cv.width = W; cv.height = H; g.imageSmoothingEnabled = false;
     var kit = new SOT.SkyKit(W, HZ, 12), state = { playing: false, t0: 0, lines: [], done: null, text: '' }, parts = [], rip = [], splashed = false;
-    var sea = px.gradCanvas(W, H - HZ, ['#c0587a', '#8a4a92', '#4a3a8c', '#223a86', '#12286a', '#0b1c4e'], 0, H - HZ);
-    var seaDay = px.gradCanvas(W, H - HZ, ['#9adcf0', '#58b8e8', '#3a98d8', '#2878bc', '#1a5898', '#124078'], 0, H - HZ);
+    var sea = px.gradCanvas(W, H - HZ, ['#0e3a58', '#0a2c4c', '#082240', '#061a34', '#04122a', '#030c1e'], 0, H - HZ);
+    var seaDay = px.gradCanvas(W, H - HZ, ['#5ad0e0', '#2fb0d0', '#1f8cc0', '#1668a8', '#0f4a88', '#0a3568'], 0, H - HZ);
     var K = 3, BX = 8, BY = 66, bw = SOT.bottle.W * K, bh = SOT.bottle.H * K;
     var fS = SOT.bottle.sprite(0, { noScroll: true, noCork: true }), fH = SOT.bottle.sprite(0, { hl: true }), fFull = SOT.bottle.sprite(0), fScroll = SOT.bottle.sprite(0, { noCork: true });
     function sc(img, x, y, k, w, h) { g.drawImage(img, 0, 0, img.width, img.height, Math.round(x), Math.round(y), Math.round((w || img.width) * k), Math.round((h || img.height) * k)); }
@@ -19,9 +19,9 @@
     function ink(x, y, len, upto) { g.fillStyle = '#4a3320'; for (var i = 0; i < upto && i < len; i += 3) { g.fillRect(x + i, y + ((i / 3) & 1), 2, 1); } }
     function bg(T, dt) {
       kit.draw(g, T, dt); g.drawImage(sea, 0, HZ); if (SOT.sky.d > .01) { g.globalAlpha = SOT.sky.d; g.drawImage(seaDay, 0, HZ); g.globalAlpha = 1; }
-      for (var i = 0; i < 9; i++) { var y = HZ + 3 + i * i * .8 | 0, off = (Math.sin(i * 2 + T * .4) * 6 + T * (2 + i)) % 14; for (var x = -off; x < W; x += 14) { g.fillStyle = Math.abs(x - kit.sunX()) < 10 + i * 5 ? 'rgba(255,225,150,.8)' : 'rgba(150,170,230,.35)'; g.fillRect(x, y, 4 + (i >> 1), 1); } }
+      for (var i = 0; i < 9; i++) { var y = HZ + 3 + i * i * .8 | 0, off = (Math.sin(i * 2 + T * .4) * 6 + T * (2 + i)) % 14; for (var x = -off; x < W; x += 14) { g.fillStyle = Math.abs(x - kit.sunX()) < 10 + i * 5 ? 'rgba(235,250,255,.85)' : 'rgba(170,215,240,.4)'; g.fillRect(x, y, 4 + (i >> 1), 1); } }
       // wooden dock
-      g.fillStyle = '#5a3a1e'; g.fillRect(0, 98, 100, 22); g.fillStyle = '#7a5230'; g.fillRect(0, 98, 100, 3); g.fillStyle = '#ffcf7a'; g.fillRect(0, 98, 100, 1); g.fillStyle = '#3e2712'; for (x = 12; x < 100; x += 22) g.fillRect(x, 101, 1, 19); g.fillRect(0, 110, 100, 1);
+      g.fillStyle = '#5a3a1e'; g.fillRect(0, 98, 100, 22); g.fillStyle = '#7a5230'; g.fillRect(0, 98, 100, 3); g.fillStyle = '#cfe6f0'; g.fillRect(0, 98, 100, 1); g.fillStyle = '#3e2712'; for (x = 12; x < 100; x += 22) g.fillRect(x, 101, 1, 19); g.fillRect(0, 110, 100, 1);
       g.fillStyle = '#3e2712'; g.fillRect(96, 98, 6, 22);
     }
     function bottleAt(x, y, kind, k) { // kind: empty | scrolled | full

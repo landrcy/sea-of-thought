@@ -116,17 +116,17 @@
   });
 
   /* ---------- sky toggle, icons, misc ---------- */
-  var skyBtn = $('skybtn'), mode = 'dusk'; try { mode = localStorage.getItem('sot:sky') || 'dusk'; } catch (e) {} if (qs.get('sky')) mode = qs.get('sky');
-  function applySky() { SOT.setSky(mode); skyBtn.textContent = mode === 'day' ? 'Day' : 'Dusk'; skyBtn.setAttribute('aria-pressed', mode === 'day'); }
-  skyBtn.addEventListener('click', function () { mode = mode === 'day' ? 'dusk' : 'day'; try { localStorage.setItem('sot:sky', mode); } catch (e) {} applySky(); });
-  applySky(); if (RM || qs.has('still')) SOT.sky.d = SOT.sky.target;
+  var skyBtn = $('skybtn'), mode = 'day'; try { mode = localStorage.getItem('sot:sky') === 'night' ? 'night' : 'day'; } catch (e) {} if (qs.get('sky')) mode = qs.get('sky') === 'night' ? 'night' : 'day';
+  function applySky() { SOT.setSky(mode); skyBtn.textContent = mode === 'day' ? 'Day' : 'Night'; skyBtn.setAttribute('aria-pressed', mode === 'night'); }
+  skyBtn.addEventListener('click', function () { mode = mode === 'day' ? 'night' : 'day'; try { localStorage.setItem('sot:sky', mode); } catch (e) {} applySky(); });
+  applySky(); SOT.sky.d = SOT.sky.target;
   $('yr').textContent = new Date().getFullYear();
   var ICONS = {
     write: ['................................', '..........................ww....', '........................wwwww...', '.............pppppppppwwwwwpp...', '............pffffffffwwwwwfffp..', '............pfiififfwwwwfffffp..', '............pffffffwwwwfffffp...', '............pfiiiifwwffffffp....', '............pffffffwfffffffp....', '............pfiififfffffffp.....', '............pffffffffffffp......', '............pppppppppppppp......'],
     seal: ['................................', '................................', '..ooooooooooooo.................', '.ogggggggggggggoo...............', 'ogHHHHHHHHHHHggoooooo..........', 'ogg.ffffttfffgggggggoCCCC.......', 'ogg.fiififtfffggggggoCCCC.......', 'ogg.ffffttfffgggggggoCCCC.......', 'ogggggggggggggoooooo.CCCC.......', '.ogggggggggggoo.................', '..ooooooooooo...................'],
     float: ['................................', '................................', '................................', '...ooooooooo....................', '..ogggggggggoo..................', '.ogHHHHHHHHggooooo.CCC..........', '.ogg.fiifffgggggggoCCC..........', '.ogg.fffffffggggggoCCC..........', '..ogggggggggoooooo.CCC..........', '...ooooooooo....................', '................................', '..ww...ww.....ww.....ww.........', '.wwwbbbwwwbbbbwwwbbbbwwwb.......', 'bbbbbbbbbbbbbbbbbbbbbbbbbbbb....']
   };
-  var IC = { p: '#e6c88a', f: '#f6e4b4', i: '#4a3320', w: '#ffffff', o: '#2a5a68', g: 'rgba(190,232,238,.55)', H: '#ffd27a', t: '#7a5230', C: '#a8672e', b: '#2a8ad0' };
+  var IC = { p: '#e6c88a', f: '#f6e4b4', i: '#4a3320', w: '#ffffff', o: '#2a5a68', g: 'rgba(190,232,238,.55)', H: '#ffffff', t: '#7a5230', C: '#a8672e', b: '#2a8ad0' };
   document.querySelectorAll('canvas[data-icon]').forEach(function (cv) { var g = cv.getContext('2d'), rows = ICONS[cv.dataset.icon]; g.fillStyle = '#12427c'; g.fillRect(0, 0, 32, 32); rows.forEach(function (r, y) { for (var x = 0; x < r.length; x++) { if (IC[r[x]]) { g.fillStyle = IC[r[x]]; g.fillRect(x, y + 8, 1, 1); } } }); });
   SOT.createHero($('hero-cv')); SOT.createDeep($('deep')); SOT.createFoot($('foot-cv'));
   load(true);
