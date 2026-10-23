@@ -93,7 +93,6 @@ textarea.ink { height: calc(32px * 6); background-image: repeating-linear-gradie
 .m-when { margin: 2px 0 12px; font-size: 22px; color: #6a4a28; }
 .m-body { margin: 0 0 12px; font-size: 29px; line-height: 32px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 46vh; overflow: auto; text-shadow: .6px 0 0 rgba(42, 22, 8, .55); background-image: repeating-linear-gradient(to bottom, transparent 0 31px, rgba(122, 82, 48, .3) 31px 32px); background-attachment: local; }
 .m-from { margin: 0; text-align: right; font-size: 26px; color: #4a2a10; }
-.m-badge { margin: 4px 0 0; font-size: 20px; color: #0077B6; text-align: right; }
 .m-rocks { display: flex; align-items: center; margin-top: 8px; min-height: 30px; }
 .m-rocks canvas { height: 36px; image-rendering: pixelated; margin-right: 4px; }
 .nav { display: flex; justify-content: space-between; margin-top: 12px; }
@@ -119,7 +118,47 @@ textarea.ink::-webkit-scrollbar-thumb, .m-body::-webkit-scrollbar-thumb { backgr
   .roll { height: 32px; width: calc(100% + 20px); margin-left: -10px; margin-right: -10px; } .roll.top { margin-bottom: -4px; } .roll.bottom { margin-top: -4px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .picking .bottle-hit::after, .toast, .pnote { animation: none; }
   .ibtn.tr { animation: none; } .dlg, .backdrop, .sheetwrap, .chip, .pscroll { transition: none !important; } .workshop canvas { animation: none; }
 }
 
 .wdlg.busy > .x { opacity: 0; pointer-events: none; transition: opacity .2s; }
+
+/* ---- top-left "delete a bottle" + pick mode ---- */
+.ibtn.tl { position: fixed; z-index: 4; top: 22px; left: 22px; padding: 7px 12px 5px; font-size: 26px; line-height: 1; letter-spacing: .5px; white-space: nowrap; }
+.ibtn.tl.on { background: #0077B6; }
+.ibtn.tl[disabled] { opacity: .5; }
+.picking, .picking .bottle-hit, .picking .ocean-layer { cursor: url(cursor-pick.png) 17 17, crosshair; }
+.picking .bottle-hit::after { content: ''; position: absolute; inset: -2px; box-shadow: 0 -3px 0 rgba(255,255,255,.9), 0 3px 0 rgba(255,255,255,.9), -3px 0 0 rgba(255,255,255,.9), 3px 0 0 rgba(255,255,255,.9); opacity: .0; animation: pickblink 1.1s steps(2) infinite; }
+.picking .bottle-hit:hover::after, .picking .bottle-hit:focus-visible::after { opacity: 1; animation: none; }
+@keyframes pickblink { 0%, 100% { opacity: .15 } 50% { opacity: .5 } }
+.toast { position: fixed; z-index: 30; top: 82px; left: 22px; margin: 0; padding: 7px 14px 5px; font-size: 26px; line-height: 1; color: #fff; background: var(--navy); box-shadow: 0 -3px 0 #90E0EF, 0 3px 0 #90E0EF, -3px 0 0 #90E0EF, 3px 0 0 #90E0EF, 3px 7px 0 rgba(1,2,40,.55); animation: toastin .35s cubic-bezier(.2,.9,.3,1.3) both; }
+.toast[hidden] { display: none; }
+.toast.out { animation: toastout .35s steps(4) both; }
+@keyframes toastin { from { transform: translateY(-10px); opacity: 0 } to { transform: none; opacity: 1 } }
+@keyframes toastout { to { transform: translateY(-6px); opacity: 0 } }
+
+/* report scroll */
+.r-copy { margin: 4px 0 12px; font-size: 24px; line-height: 24px; color: #4a2a10; }
+.r-copy b { color: #7a1a1a; font-weight: normal; text-decoration: underline; }
+.r-row { display: flex; align-items: baseline; gap: 10px; }
+.r-lab { font-size: 24px; color: #4a2a10; display: block; margin-top: 4px; }
+.r-opt { color: #8a6a44; font-size: 20px; }
+.ink.num { width: 110px; height: 34px; border-bottom: 4px double rgba(122, 82, 48, .5); font-size: 30px; }
+.r-peek { margin: 2px 0 8px; min-height: 22px; font-size: 21px; color: #6a4a28; overflow-wrap: anywhere; }
+#r-why { height: calc(32px * 3); }
+.ibtn.paper.txt { padding: 6px 14px 4px; font-size: 26px; color: #f3dfae; gap: 8px; line-height: 1; }
+.ibtn.paper.txt canvas { width: 24px; height: 24px; }
+.pnote { margin: 12px 0 0; padding: 6px 12px 4px; font-size: 25px; line-height: 1; color: #fff; background: var(--navy); box-shadow: 0 -3px 0 #90E0EF, 0 3px 0 #90E0EF, -3px 0 0 #90E0EF, 3px 0 0 #90E0EF; animation: toastin .25s cubic-bezier(.2,.9,.3,1.4) both; }
+.pnote[hidden] { display: none; }
+.pnote::before { content: '! '; color: #48CAE4; }
+
+@media (max-width: 1100px) {
+  .title { top: 74px; }
+}
+@media (max-width: 640px) {
+  .ibtn.tl { top: 14px; left: 14px; padding: 5px 9px 4px; font-size: 22px; }
+  .toast { top: 62px; left: 14px; font-size: 22px; }
+  .title { top: 62px; }
+  .r-copy { font-size: 22px; line-height: 22px; }
+}

@@ -31,7 +31,7 @@
       var id = str(b.id, 40), ts = +b.ts, n = +b.n, msg = str(b.msg, 280).trim();
       if (!id || seen[id] || !isFinite(ts) || !isFinite(n) || !msg) continue;
       seen[id] = 1;
-      out.push({ id: id, n: n | 0, ts: Math.round(ts), name: str(b.name, 24).replace(/\n/g, ' ').trim(), msg: msg, rocks: rocks(b.rocks), seed: b.seed === true });
+      out.push({ id: id, n: n | 0, ts: Math.round(ts), name: str(b.name, 24).replace(/\n/g, ' ').trim(), msg: msg, rocks: rocks(b.rocks)});
     }
     return out.sort(function (x, y) { return x.n - y.n || x.ts - y.ts; });
   }
@@ -66,22 +66,17 @@
 
     return {
       get mode() { return mode; },
-      /* Read every bottle. Seeds 3 clearly-labelled example bottles ONLY when the store is empty. */
-      async list(seeds) {
-        var l;
+      /* Read every bottle. Never creates any: an empty sea stays empty (the first bottle becomes #1). */
+      async list() {
+        var l = [];
         if (mode === 'remote') { try { l = await rRead(); } catch (e) { mode = 'local'; } }
         if (mode === 'local') l = lRead();
-        if (!l.length && seeds && seeds.length) {
-          var t = Date.now();
-          l = clean(seeds.map(function (s, i) { return { id: 'seed-' + (i + 1), n: i + 1, ts: t - (seeds.length - i) * 60000, name: s.name, msg: s.msg, rocks: s.rocks | 0, seed: true }; }));
-          if (mode === 'remote') { try { await rWrite(l); } catch (e) { mode = 'local'; lWrite(l); } } else lWrite(l);
-        }
         return l;
       },
       /* Append one bottle. Merge-on-write: re-read right before writing, merge by id, write,
        * then read back to verify (retry if a concurrent visitor overwrote us). */
       async add(rec) {
-        var mine = { id: uid(), n: 0, ts: Date.now(), name: str(rec.name, 24).replace(/\n/g, ' ').trim(), msg: str(rec.msg, 280).trim(), rocks: rocks(rec.rocks), seed: false };
+        var mine = { id: uid(), n: 0, ts: Date.now(), name: str(rec.name, 24).replace(/\n/g, ' ').trim(), msg: str(rec.msg, 280).trim(), rocks: rocks(rec.rocks) };
         if (!mine.msg) throw new Error('empty');
         var fresh = [], all = [];
         for (var attempt = 0; attempt < 3; attempt++) {
@@ -109,8 +104,71 @@
       _clean: clean, _rocks: rocks, _merge: merge, _str: str
     };
   }
+
+  /* ---------- review queue (reports) ----------
+   * A SEPARATE bucket. A report NEVER touches the bottles bucket: the bottle stays visible until the
+   * owner removes it by hand. Record: {id, bottleId, n, ts, reason, bottleName, bottleMsg, bottleTs, status}
+   */
+  var REPORT_DEFAULTS = {
+    url: 'https://textdb.dev/api/data/sea-of-thought-reports-20569297366a',
+    localKey: 'sot:reports:v1', max: 500, minGap: 20000, dedupeMs: 3600000, lastKey: 'sot:rlast', seenKey: 'sot:reported'
+  };
+  var STATUS = { pending: 1, reviewed: 1, dismissed: 1, removed: 1 };
+  function cleanReports(a) {
+    var seen = Object.create(null), out = [];
+    if (!Array.isArray(a)) return out;
+    for (var i = 0; i < a.length; i++) {
+      var r = a[i]; if (!r || typeof r !== 'object') continue;
+      var id = str(r.id, 40), bid = str(r.bottleId, 40), ts = +r.ts, n = +r.n, bts = +r.bottleTs;
+      if (!id || seen[id] || !bid || !isFinite(ts) || !isFinite(n)) continue;
+      seen[id] = 1;
+      out.push({ id: id, bottleId: bid, n: n | 0, ts: Math.round(ts), reason: str(r.reason, 140).replace(/[<>]/g, '').replace(/\n/g, ' ').trim(), bottleName: str(r.bottleName, 24).replace(/\n/g, ' ').trim(), bottleMsg: str(r.bottleMsg, 280).trim(), bottleTs: isFinite(bts) ? Math.round(bts) : 0, status: STATUS[r.status] === 1 ? r.status : 'pending' });
+    }
+    return out.sort(function (x, y) { return x.ts - y.ts; });
+  }
+  function createReportsApi(o) {
+    o = Object.assign({}, REPORT_DEFAULTS, o || {});
+    var fetchFn = o.fetch || (root.fetch && root.fetch.bind(root)), store = o.storage || null, local = !!o.forceLocal;
+    function kv(k) { try { return JSON.parse(store.getItem(k)); } catch (e) { return null; } }
+    function kset(k, v) { try { store.setItem(k, typeof v === 'string' ? v : JSON.stringify(v)); } catch (e) {} }
+    async function rRead() {
+      var r = await fetchFn(o.url, { cache: 'no-store' }); if (!r.ok) throw new Error('read ' + r.status);
+      var t = (await r.text()).trim(); if (!t) return []; var j; try { j = JSON.parse(t); } catch (e) { throw new Error('bad json'); }
+      return cleanReports(j && j.reports);
+    }
+    async function rWrite(list) { var r = await fetchFn(o.url, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ v: 1, reports: list.slice(-o.max) }) }); if (!r.ok) throw new Error('write ' + r.status); }
+    function read() { return local ? Promise.resolve(cleanReports(kv(o.localKey))) : rRead(); }
+    function write(l) { if (local) { kset(o.localKey, l.slice(-o.max)); return Promise.resolve(); } return rWrite(l); }
+    return {
+      /* -> {ok, state:'sent'|'duplicate'|'wait'|'empty'|'failed', wait?} */
+      async submit(bottle, reason) {
+        var now = Date.now(); if (!bottle || !bottle.id) return { ok: false, state: 'failed' };
+        var seen = (store && kv(o.seenKey)) || {}, last = store ? +store.getItem(o.lastKey) || 0 : 0;
+        if (seen[bottle.id] && now - seen[bottle.id] < o.dedupeMs) return { ok: true, state: 'duplicate' };
+        if (last && now - last < o.minGap) return { ok: false, state: 'wait', wait: Math.ceil((o.minGap - (now - last)) / 1000) };
+        var F = root.SOT && root.SOT.filter, why = str(reason || '', 140).replace(/[<>]/g, '').replace(/\n/g, ' ').trim();
+        if (F) why = F.clean(why).text;                       // last line of defence: bad words never leave the browser
+        var rec = { id: uid(), bottleId: str(bottle.id, 40), n: bottle.n | 0, ts: now, reason: why, bottleName: str(bottle.name, 24).replace(/\n/g, ' ').trim(), bottleMsg: str(bottle.msg, 280).trim(), bottleTs: Math.round(+bottle.ts) || 0, status: 'pending' };
+        try {
+          for (var attempt = 0; attempt < 3; attempt++) {
+            var cur = await read(), all = cleanReports(cur.concat([rec]));
+            if (all.length > o.max) all = all.slice(-o.max);
+            await write(all);
+            if (local) break;
+            var chk = await rRead(); if (chk.some(function (x) { return x.id === rec.id; })) break;
+            if (attempt === 2) throw new Error('not verified');
+          }
+        } catch (e) { return { ok: false, state: 'failed' }; }
+        seen[bottle.id] = now; kset(o.seenKey, seen); kset(o.lastKey, String(now));
+        return { ok: true, state: 'sent', report: rec };
+      },
+      _clean: cleanReports
+    };
+  }
   root.SOT = root.SOT || {};
   root.SOT.createSeaApi = createSeaApi;
+  root.SOT.createReportsApi = createReportsApi;
+  root.SOT.REPORT_DEFAULTS = REPORT_DEFAULTS;
   root.SOT.SEA_DEFAULTS = DEFAULTS;
-  if (typeof module !== 'undefined' && module.exports) module.exports = { createSeaApi: createSeaApi, DEFAULTS: DEFAULTS };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { createSeaApi: createSeaApi, createReportsApi: createReportsApi, DEFAULTS: DEFAULTS, REPORT_DEFAULTS: REPORT_DEFAULTS };
 })(typeof window !== 'undefined' ? window : globalThis);
