@@ -1,0 +1,9 @@
+Background music
+Title:   Aquaria
+Artist:  cynicmusic (from the soundtrack of the game Pixelsphere)
+Source:  https://opengameart.org/content/aquaria
+Licence: CC0 1.0 Universal (public domain dedication) - https://creativecommons.org/publicdomain/zero/1.0/
+         (licence listed on the source page; attribution not required, given here as a courtesy)
+Original file: TylerSong3_Normal.wav (44 s, sample-accurate loop point), https://opengameart.org/sites/default/files/TylerSong3_Normal.wav
+Changes: the 44 s loop is repeated 4x (about 2m56s) and encoded to Ogg Vorbis (aquaria.ogg, ~q3) and MP3 112 kbps (aquaria.mp3) for the web. No other processing.
+More by the artist: http://cynicmusic.com
