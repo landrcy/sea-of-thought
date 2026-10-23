@@ -1,0 +1,91 @@
+{
+ "project": "Sea of Thought",
+ "generator": "generate.py",
+ "style": {
+  "light": "top-left",
+  "shading": "4-tone hue-shifted ramps + darker-tone outline",
+  "alpha": "binary (0/255)",
+  "palette": "Ocean Blue Serenity #03045E #023E8A #0077B6 #0096C7 #00B4D8 #48CAE4 #90E0EF #ADE8F4 #CAF0F8 + creature accents"
+ },
+ "notes": "Each sheet = frames side by side, frame_width x frame_height each. anchor = [x,y] pixel inside a frame. *_glow.png = same layout, only the emissive pixels (use for additive/bloom overlay). (Trimmed: only the pirate ships are used by the site; gulls and fish are drawn procedurally on the scene grid.)",
+ "sprites": [
+  {
+   "name": "sloop_small",
+   "category": "ship",
+   "file": "sprites/sloop_small.png",
+   "frame_width": 76,
+   "frame_height": 80,
+   "frame_count": 3,
+   "anchor": [
+    34,
+    76
+   ],
+   "facing": "right",
+   "notes": "Single-mast sloop; gaff mainsail + jib; jolly roger waves (3 frames). Anchor = hull centre at waterline; flag streams right.",
+   "loop": [
+    0,
+    1,
+    2
+   ]
+  },
+  {
+   "name": "sloop_large",
+   "category": "ship",
+   "file": "sprites/sloop_large.png",
+   "frame_width": 125,
+   "frame_height": 132,
+   "frame_count": 3,
+   "anchor": [
+    56,
+    128
+   ],
+   "facing": "right",
+   "notes": "Larger sloop with crow's nest, gunports, jolly roger (3 frames). Anchor = hull centre at waterline; flag streams right.",
+   "loop": [
+    0,
+    1,
+    2
+   ]
+  },
+  {
+   "name": "galleon_small",
+   "category": "ship",
+   "file": "sprites/galleon_small.png",
+   "frame_width": 136,
+   "frame_height": 122,
+   "frame_count": 3,
+   "anchor": [
+    68,
+    111
+   ],
+   "facing": "right",
+   "notes": "Three-masted galleon: square sails, lateen mizzen, stern castle, gunports; 3 flags wave. Anchor = hull centre at waterline; flag streams right.",
+   "glow_mask_file": "sprites/galleon_small_glow.png",
+   "loop": [
+    0,
+    1,
+    2
+   ]
+  },
+  {
+   "name": "galleon_large",
+   "category": "ship",
+   "file": "sprites/galleon_large.png",
+   "frame_width": 223,
+   "frame_height": 199,
+   "frame_count": 3,
+   "anchor": [
+    111,
+    188
+   ],
+   "facing": "right",
+   "notes": "Large galleon, same layout at 1.7x with more detail. Anchor = hull centre at waterline; flag streams right.",
+   "glow_mask_file": "sprites/galleon_large_glow.png",
+   "loop": [
+    0,
+    1,
+    2
+   ]
+  }
+ ]
+}
