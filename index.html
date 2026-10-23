@@ -32,6 +32,8 @@
 <div id="overlay" role="group" aria-label="Bottles floating in the sea. Scroll down to dive deeper and find older bottles."></div>
 
 <button class="ibtn tr" id="write-btn" type="button" aria-label="Write a bottle" data-tip="Write a bottle"><canvas aria-hidden="true"></canvas></button>
+<button class="ibtn tl" id="del-btn" type="button" aria-pressed="false" aria-label="Delete a bottle: pick a bottle to send for review"><span id="del-label">delete a bottle</span></button>
+<p class="toast" id="toast" role="status" aria-live="polite" hidden></p>
 <p class="sr" id="live" role="status" aria-live="polite"></p>
 
 <!-- write a bottle: a pixel parchment scroll -->
@@ -72,7 +74,6 @@
         <p id="m-when" class="m-when"></p>
         <p id="m-body" class="m-body"></p>
         <p id="m-from" class="m-from"></p>
-        <p id="m-badge" class="m-badge" hidden>an example bottle</p>
         <div id="m-rocks" class="m-rocks" hidden><span id="m-rocks-art"></span></div>
         <div class="nav">
           <button type="button" class="ibtn paper" id="m-prev" aria-label="Older bottle" data-tip="Older"><canvas aria-hidden="true"></canvas></button>
@@ -84,10 +85,37 @@
   </div>
 </div>
 
+<!-- report a bottle: sent to a review queue, never deleted instantly -->
+<div class="modal" id="rmodal" hidden>
+  <div class="backdrop" data-close></div>
+  <div class="dlg rpdlg" role="dialog" aria-modal="true" aria-labelledby="r-title">
+    <button class="ibtn x" type="button" data-close aria-label="Close" data-tip="Close"><canvas aria-hidden="true"></canvas></button>
+    <div class="pscroll" id="rpscroll">
+      <canvas class="roll top" aria-hidden="true"></canvas>
+      <div class="sheetwrap"><form class="sheet" id="rform" autocomplete="off"><div class="sheet-in">
+        <h2 id="r-title" class="m-title">Send a bottle for review</h2>
+        <p class="r-copy">This does <b>not</b> delete anything right away. Your note goes to a review queue and the bottle stays afloat until the keeper has looked at it.</p>
+        <div class="r-row"><label for="r-num" class="r-lab">bottle #</label><input id="r-num" class="ink num" inputmode="numeric" maxlength="5" aria-describedby="r-peek" autocomplete="off"></div>
+        <p id="r-peek" class="r-peek" aria-live="polite"></p>
+        <label for="r-why" class="r-lab">why? <span class="r-opt">(optional)</span></label>
+        <textarea id="r-why" class="ink" rows="3" maxlength="140" placeholder="tell the keeper what is wrong…"></textarea>
+        <div class="tools">
+          <span id="r-count" class="count">0/140</span>
+          <button type="submit" class="ibtn paper txt" id="r-send" aria-label="Send for review"><canvas aria-hidden="true" class="flag"></canvas><span>send for review</span></button>
+        </div>
+        <p id="r-note" class="pnote" role="alert" hidden>Please keep it kind</p>
+      </div></form></div>
+      <canvas class="roll bottom" aria-hidden="true"></canvas>
+    </div>
+  </div>
+</div>
+
+<script src="assets/filter.js"></script>
 <script src="assets/store.js"></script>
 <script src="assets/scene.js"></script>
 <script src="assets/bottles.js"></script>
 <script src="assets/life.js"></script>
+<script src="assets/seabed.js"></script>
 <script src="assets/ocean.js"></script>
 <script src="assets/icons.js"></script>
 <script src="assets/workshop.js"></script>
