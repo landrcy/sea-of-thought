@@ -64,11 +64,21 @@
     /* One-time: after the three test bottles (#1-#3) were removed, numbers started at #4.
      * Remap known ids so a stale localStorage cache stays consistent with the shared store. */
     var OLD_N = { mvladl6bhgalzf: 4, mvlbf598r2jmqq: 5, mvlcbx8my71vz5: 6, mvlcqwbjd5v2w4: 7, mvldv8rbas75vz: 8, mvlis9xrorw0rp: 9, mvtitqzyppqbit: 10, mvtiuurizu1uvn: 11, mvtiw664tbvc00: 12, mvtl6racc49bwt: 13, mvtlfqypei9r8b: 14, mvtlgp3r1idga2: 15, mw9pu0o4lm6sbh: 16 };
+    /* One-time: #17–#20 and #22 were removed; old #21 becomes #17. Drop those ids
+     * and remap so a stale local cache matches the shared store. */
+    var DROP_IDS = { mwazlfnmoc5apk: 1, mwazli2kgkxple: 1, mwazm670fy921m: 1, mwazm6obsxhdp8: 1, mwazneh3u0kug9: 1 };
+    var NEW_N = { mwazmco1drfind: 17 };
     function migrateN(list) {
-      var changed = false, out = list.map(function (b) {
-        var old = OLD_N[b.id];
-        if (old != null && b.n === old) { changed = true; return { id: b.id, n: old - 3, ts: b.ts, name: b.name, msg: b.msg, rocks: b.rocks }; }
-        return b;
+      var changed = false, out = [];
+      list.forEach(function (b) {
+        var old = OLD_N[b.id], nb = b;
+        if (old != null && b.n === old) { changed = true; nb = { id: b.id, n: old - 3, ts: b.ts, name: b.name, msg: b.msg, rocks: b.rocks }; }
+        if (DROP_IDS[nb.id]) { changed = true; return; }
+        if (NEW_N[nb.id] != null && nb.n !== NEW_N[nb.id]) {
+          changed = true;
+          nb = { id: nb.id, n: NEW_N[nb.id], ts: nb.ts, name: nb.name, msg: nb.msg, rocks: nb.rocks };
+        }
+        out.push(nb);
       });
       return changed ? out.sort(function (x, y) { return x.n - y.n || x.ts - y.ts; }) : list;
     }
