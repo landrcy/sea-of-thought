@@ -29,6 +29,32 @@
     var far, mid, near, kelpB, kelpF, vign, caus, causG, causData, shoals = [], singles = [], snow = [], bubs = [], parts = [], ripples = [], plumes = [];
     var FX = SOT.fx, A = { parts: null, ripples: null }; FX.init(A);
     function surfY(x, t) { var c = FX.chop; return SY + Math.round((1.7 * Math.sin(x * .07 + t * .9) + .9 * Math.sin(x * .13 - t * 1.3) + .5 * Math.sin(x * .31 + t * 2.1)) * c + (c > 1.05 ? (c - 1) * 1.1 * Math.sin(x * .45 - t * 3.3) : 0)); }
+    function idMix(b) { var s = 0, id = String(b.id || ''), i; for (i = 0; i < id.length; i++) s = (s * 33 + id.charCodeAt(i)) | 0; return s; }
+    function bh(b, a, c) { return hash((b.n | 0) ^ (idMix(b) & 0xffff), a, c); }
+    function floorAt(x) { return worldH - Math.round(5 + 2.5 * Math.sin(x * .05) + 1.5 * Math.sin(x * .13 + 2)); }
+    function titleBox() {
+      var te = document.querySelector('.title'), img = document.getElementById('title-img');
+      if (!te || !img) return null;
+      var w = img.offsetWidth || 0, h = img.offsetHeight || 0, top = parseFloat(getComputedStyle(te).top);
+      if (!w || !h) return null;
+      if (!isFinite(top)) top = 14;
+      return { top: top, bottom: top + h, left: (cssW - w) / 2, right: (cssW + w) / 2, w: w, h: h };
+    }
+    function paintLedge(g, cx, floorY, h) {
+      /* small sandy pillow, not a hill — wide and low so it reads as a resting spot */
+      var rad = Math.max(11, Math.min(16, h + 8)), hh = Math.max(6, Math.min(10, h)), x, y, w, yy;
+      for (y = 0; y <= hh; y++) {
+        w = Math.round(rad * Math.sqrt(Math.max(0, 1 - (y / (hh + .4)) * (y / (hh + .4)))));
+        for (x = -w; x <= w; x++) {
+          var edge = x === -w || x === w, top = y >= hh - 1;
+          g.fillStyle = top ? '#efe4c4' : (edge ? '#6a5840' : ((x * 3 + y * 5) % 7 === 0 ? '#c4b080' : (y < 2 ? '#8a7350' : '#d8c8a0')));
+          g.fillRect(cx + x, floorY - y, 1, 1);
+        }
+      }
+      g.fillStyle = '#fff6dc';
+      for (x = -rad + 2; x <= rad - 2; x++) { yy = Math.round(hh * Math.sqrt(Math.max(0, 1 - (x / rad) * (x / rad)))); g.fillRect(cx + x, floorY - yy, 1, 1); }
+      g.fillStyle = '#b8e0f4'; g.fillRect(cx - 2, floorY - hh, 2, 1); g.fillRect(cx + 2, floorY - hh + 1, 1, 1);
+    }
     function camFor(f, anchorBottom) { return anchorBottom ? cam * f + camMax * (1 - f) : cam * f; }
 
     /* ---------- build static art ---------- */
@@ -106,35 +132,124 @@
       fps: 120, T: 0, items: items,
       layout: function () {
         cssW = document.documentElement.clientWidth; cssH = window.innerHeight; S = cssW >= 1700 ? 5 : cssW >= 1000 ? 4 : cssW >= 600 ? 3 : 2; W = Math.ceil(cssW / S); H = Math.ceil(cssH / S);
-        cv.width = W; cv.height = H; g = cv.getContext('2d'); g.imageSmoothingEnabled = false; if (fcv) { fcv.width = W; fcv.height = H; gf = fcv.getContext('2d'); gf.imageSmoothingEnabled = false; } else gf = null; HZ = Math.round(cssH * .33 / S); SY = HZ + 9; kit = new SOT.SkyKit(W, HZ, 9); SBH = Math.min(Math.round(H * .8), 210);
+        cv.width = W; cv.height = H; g = cv.getContext('2d'); g.imageSmoothingEnabled = false; if (fcv) { fcv.width = W; fcv.height = H; gf = fcv.getContext('2d'); gf.imageSmoothingEnabled = false; } else gf = null;
+        /* Keep a clear gap under the title so floating bottles aren't hidden in its footprint. */
+        var tb0 = titleBox(), hzMin = Math.round(cssH * .33 / S);
+        if (tb0) hzMin = Math.max(hzMin, Math.ceil((tb0.bottom + 76) / S) - 9);
+        HZ = Math.min(Math.max(hzMin, 24), Math.round(cssH * .48 / S)); SY = HZ + 9; kit = new SOT.SkyKit(W, HZ, 9); SBH = Math.min(Math.round(H * .8), 210);
         sc.arrange(true);
       },
       arrange: function (rebuild) {
-        /* Depth rules (deterministic): 0 stones = age-based slow sink (rows, newest at the surface); 1 stone settles ~22% of the way down the dive,
-           2 stones ~50%, 3 stones all the way to the seabed. */
+        /* Depth rules (deterministic per bottle id): 0 stones = age-based rows (newest at the surface).
+           1 / 2 / 3 stones settle in a random band for that weight, with x jitter and a slight tilt.
+           3-stone bottles rest on a sandy ledge on the seafloor and stay clear of key scenery. */
         var plain = items.filter(function (b) { return !b.rocks; }), stoned = items.filter(function (b) { return b.rocks; }), n = plain.length, k = clamp(Math.floor(cssW / 190), 2, 6), rows = Math.max(1, Math.ceil(n / k)), V = clamp(6 + Math.floor(items.length / 30), 6, 10);
         var sbCss = SBH * S, first = 190, minGap = 96, deepRows = Math.max(0, rows - 1), SYc = SY * S;
         var worldCss = V * cssH, usable = worldCss - SYc - sbCss - 110, need = first + Math.max(0, deepRows - 1) * minGap;
         if (need > usable) { worldCss += need - usable; usable = need; }
         var gap = deepRows > 1 ? clamp((usable - first) / (deepRows - 1), minGap, Math.max(420, cssH * .7)) : 300;
         worldH = Math.ceil(worldCss / S); BT = worldH - SBH; camMax = Math.max(0, worldH - H); DD = Math.max(1, BT - SY); spacer.style.height = Math.round(worldH * S) + 'px';
-        var m = Math.round(60 / S) + 8, span = W - m * 2, pk, sz;
+        var m = Math.round(60 / S) + 8, span = W - m * 2, pk, sz, tb = titleBox();
+        if (rebuild || !mid) buildSeabed();
+        var avoid = (mid && mid._avoid) ? mid._avoid : [];
+        function occupied(x, y, self, minD, useAvoid) {
+          var i, a, dx, dy;
+          if (useAvoid) for (i = 0; i < avoid.length; i++) { a = avoid[i]; if (x > a[0] - 12 && x < a[1] + 12) return true; }
+          for (i = 0; i < items.length; i++) {
+            if (items[i] === self || items[i].tx == null) continue;
+            dx = x - items[i].tx; dy = y - (items[i].ty || y);
+            if (dx * dx + dy * dy < minD * minD) return true;
+          }
+          return false;
+        }
+        function placeX(b, pref, y, minD, useAvoid) {
+          var x = clamp(pref, m, W - m), tries, step;
+          if (!occupied(x, y, b, minD, useAvoid)) return x;
+          for (tries = 1; tries <= 28; tries++) {
+            step = Math.round((7 + tries * 10) * (bh(b, 11, tries) > .5 ? 1 : -1));
+            x = clamp(pref + step, m, W - m); if (!occupied(x, y, b, minD, useAvoid)) return x;
+            x = clamp(pref - step, m, W - m); if (!occupied(x, y, b, minD, useAvoid)) return x;
+          }
+          return clamp(pref, m, W - m);
+        }
+        plain.forEach(function (b) { b.tx = null; b.ty = null; });
+        stoned.forEach(function (b) { b.tx = null; b.ty = null; });
         plain.forEach(function (b, i) {
-          var r = Math.floor(i / k), c = i % k, inRow = r === rows - 1 ? n - r * k : k, slot = span / inRow, jx = (hash(b.n, 3, 1) - .5) * slot * .3, jy = (hash(b.n, 4, 2) - .5) * 26;
-          b.tx = clamp(Math.round(m + (c + .5) * slot + jx), m, W - m); b.row = r; b.float = r === 0; b.ty = r === 0 ? SY : SY + Math.min(first + (r - 1) * gap + jy, usable) / S;
+          var r = Math.floor(i / k), c = i % k, inRow = r === rows - 1 ? n - r * k : k, slot = span / inRow, jx = (bh(b, 3, 1) - .5) * slot * .3, jy = (bh(b, 4, 2) - .5) * 26;
+          b.row = r; b.float = r === 0; b.ty = r === 0 ? SY : SY + Math.min(first + (r - 1) * gap + jy, usable) / S;
+          b.tx = clamp(Math.round(m + (c + .5) * slot + jx), m, W - m);
         });
-        var ST = [0, .22, .5, 1];
-        stoned.forEach(function (b, i) {
-          var fr = ST[Math.min(3, b.rocks | 0)], jit = (hash(b.n, 9, 4) - .5) * (b.rocks === 3 ? 0 : .04), nth = stoned.filter(function (o) { return o.rocks === b.rocks && o.n < b.n; }).length;
-          b.tx = clamp(Math.round(m + (((nth * .618 + hash(b.n, 7, 3) * .35 + b.rocks * .21) % 1)) * span), m, W - m); b.row = 1; b.float = false;
-          b.ty = b.rocks >= 3 ? worldH - 30 - Math.round(hash(b.n, 6, 2) * 6) : SY + clamp(fr + jit, .1, .9) * DD;
+        /* If the title still sits close to the waterline, keep surface bottles out of its horizontal footprint. */
+        if (tb && (SY * S - tb.bottom) < 64) {
+          var t0 = tb.left / S - 10, t1 = tb.right / S + 10, floats = plain.filter(function (b) { return b.float; });
+          var leftW = Math.max(0, t0 - m), rightW = Math.max(0, W - m - t1), side = leftW + rightW;
+          if (side > 36) {
+            var leftN = 0; floats.forEach(function (b) { if (bh(b, 21, 9) < leftW / Math.max(side, 1)) leftN++; });
+            if (leftN === 0 && floats.length > 1) leftN = Math.ceil(floats.length / 2);
+            if (leftN === floats.length && floats.length > 1) leftN = Math.floor(floats.length / 2);
+            var li = 0, ri = 0, ln = leftN, rn = floats.length - leftN;
+            floats.forEach(function (b) {
+              var onL = (bh(b, 21, 9) < leftW / Math.max(side, 1) && li < ln) || ri >= rn;
+              if (onL && li >= ln && rn) onL = false;
+              var count = onL ? ln : rn, idx = onL ? li++ : ri++, lo = onL ? m : t1, hi = onL ? t0 : (W - m), wid = Math.max(20, hi - lo);
+              var jx2 = (bh(b, 3, 6) - .5) * Math.min(28, wid * .25);
+              b.tx = clamp(Math.round(lo + (idx + .5) * (wid / Math.max(1, count)) + jx2), Math.round(lo), Math.round(hi));
+            });
+          }
+        }
+        var BAND = { 1: [.10, .34], 2: [.38, .66] };
+        /* Use the core of each structure (not the padded full box) so bottles can sit in the sand pockets beside them. */
+        var core = avoid.map(function (a) { var w = a[1] - a[0], inset = Math.min(36, Math.max(12, w * .3)); return [a[0] + inset, a[1] - inset]; }).filter(function (a) { return a[1] - a[0] > 16; });
+        var free = [], x, blocked, i, a;
+        for (x = m; x <= W - m; x++) {
+          blocked = false;
+          for (i = 0; i < core.length; i++) { a = core[i]; if (x > a[0] && x < a[1]) { blocked = true; break; } }
+          if (!blocked) free.push(x);
+        }
+        var gaps = [], gi, gs, ge;
+        for (i = 0; i < free.length; ) {
+          gs = ge = free[i];
+          while (i + 1 < free.length && free[i + 1] === ge + 1) { i++; ge = free[i]; }
+          if (ge - gs >= 10) gaps.push({ s: gs, e: ge, w: ge - gs + 1, used: [] });
+          i++;
+        }
+        if (!gaps.length) gaps.push({ s: m, e: W - m, w: span, used: [] });
+        var deep = stoned.filter(function (b) { return (b.rocks | 0) >= 3; }).slice().sort(function (a, b) { return a.n - b.n; });
+        var minDX = Math.max(20, Math.min(36, Math.round(W / 10)));
+        deep.forEach(function (b, di) {
+          var lift = 8 + Math.round(((di + .4 + (bh(b, 6, 2) - .5) * .35) / Math.max(1, deep.length)) * 18);
+          b.row = 1; b.float = false; b.tilt = (bh(b, 15, 8) - .5) * .5;
+          var best = 0, bestScore = -1e9, score, slot, tries, ok, px, g;
+          for (gi = 0; gi < gaps.length; gi++) {
+            g = gaps[gi]; score = g.w - g.used.length * minDX + bh(b, 7, 3 + gi) * 10;
+            if (score > bestScore) { bestScore = score; best = gi; }
+          }
+          slot = gaps[best]; tries = 0; ok = false;
+          do {
+            px = Math.round(slot.s + 6 + bh(b, 8, 2 + tries) * Math.max(1, slot.w - 12));
+            px = clamp(px, slot.s, slot.e);
+            ok = slot.used.every(function (t) { return Math.abs(t - px) >= minDX; });
+            tries++;
+          } while (!ok && tries < 24);
+          if (!ok) px = clamp(Math.round(slot.s + (slot.used.length + .5) * slot.w / (slot.used.length + 1)), slot.s, slot.e);
+          slot.used.push(px); b.tx = px; b.ty = floorAt(px) - lift; b.ledge = lift;
+        });
+        stoned.forEach(function (b) {
+          if ((b.rocks | 0) >= 3) return;
+          var rk = Math.min(2, Math.max(1, b.rocks | 0)), band = BAND[rk], pref, ty;
+          b.row = 1; b.float = false; b.tilt = (bh(b, 15, 8) - .5) * .5;
+          pref = m + (((bh(b, 7, 3) * .62 + bh(b, 19, 5) * .38 + rk * .13) % 1) * span);
+          ty = SY + (band[0] + bh(b, 9, 4) * (band[1] - band[0])) * DD;
+          b.tx = placeX(b, Math.round(pref + (bh(b, 12, 6) - .5) * 28), ty, 30, false);
+          b.ty = ty;
         });
         items.forEach(function (b) {
-          b.ph = b.ph == null ? hash(b.n, 5, 3) * 6 : b.ph; pk = SOT.bottles.pick(b.n); b.shape = pk.shape; b.tint = pk.tint; b.wax = pk.wax; sz = SOT.bottles.size(b.shape); b.bw = sz.w; b.bh = sz.h;
+          b.ph = b.ph == null ? bh(b, 5, 3) * 6 : b.ph; pk = SOT.bottles.pick(b.n); b.shape = pk.shape; b.tint = pk.tint; b.wax = pk.wax; sz = SOT.bottles.size(b.shape); b.bw = sz.w; b.bh = sz.h;
+          if (b.tilt == null) b.tilt = 0;
           if (b.x == null) { b.x = b.tx; b.y = b.ty; b.ang = 0; b.vxS = 0; b.vyS = 0; }
           if (b.el) { b.el.style.setProperty('--S', S); b.dom = true; }
         });
-        if (rebuild) { buildGrad(); buildSeabed(); buildKelp(); buildLife(); } else { buildGrad(); buildLife(); }
+        if (rebuild) { buildGrad(); buildKelp(); buildLife(); } else { buildGrad(); buildLife(); }
       },
       /* list: newest-first [{id,n,ts,rocks,el}] */
       setBottles: function (list, newId) {
@@ -149,7 +264,7 @@
       splash: function (x, y, big, rocks) { var n = big ? 34 : 14, i; for (i = 0; i < n; i++) parts.push({ x: x + (Math.random() - .5) * 4, y: y, vx: (Math.random() - .5) * (big ? 56 : 30), vy: -(24 + Math.random() * (big ? 56 : 28)), l: .8 + Math.random() * .6, k: Math.random() > .3 ? 0 : 1 });
         for (i = 0; i < (big ? 12 : 4); i++) parts.push({ x: x + (Math.random() - .5) * 12, y: y + 3 + Math.random() * 4, vx: (Math.random() - .5) * 8, vy: 10 + Math.random() * 14, l: 1.2 + Math.random(), k: 2, b: Math.floor(Math.random() * 3) });
         ripples.push({ x: x, y: y, r: 1, a: 1 }); if (big) ripples.push({ x: x, y: y, r: -5, a: .8 }); },
-      probe: function () { var o = items[0] || {}, raw = items, sg = singles.filter(function (q) { return q.t === 'turtle' || q.t === 'tuna'; })[0] || {}; return { raw: raw, cam: cam, T: sc.T, shoal: shoals[0] && shoals[0].x, single: sg.x, bx: o.x, by: o.y, by2: (items[3] || {}).y, ripples: ripples.length, S: S, SY: SY, BT: BT, DD: DD, items: items.map(function (q) { return { n: q.n, r: q.rocks | 0, ty: q.ty, y: q.y, f: (q.ty - SY) / DD }; }) }; },
+      probe: function () { var o = items[0] || {}, raw = items, sg = singles.filter(function (q) { return q.t === 'turtle' || q.t === 'tuna'; })[0] || {}; return { raw: raw, cam: cam, T: sc.T, shoal: shoals[0] && shoals[0].x, single: sg.x, bx: o.x, by: o.y, by2: (items[3] || {}).y, ripples: ripples.length, S: S, W: W, H: H, SY: SY, BT: BT, DD: DD, avoid: mid && mid._avoid, items: items.map(function (q) { return { n: q.n, r: q.rocks | 0, tx: q.tx, ty: q.ty, y: q.y, f: (q.ty - SY) / DD }; }) }; },
       get S() { return S; }, get W() { return W; }, get H() { return H; }, get camMax() { return camMax; },
       render: function (dt, t) {
         T = t; var i, x, b, camI; A.W = W; A.H = H; A.S = S; A.SY = SY; A.HZ = HZ; A.BT = BT; A.cam = cam; A.shoals = shoals; A.parts = parts; A.ripples = ripples; A.surfY = surfY; A.splash = sc.splash;
@@ -186,7 +301,7 @@
         this._life(g, dt, t, camI, Lf); FX.food(g, camI, t);
         /* --- seabed (mid) --- */
         if (camI + H > worldH - SBH - 8) {
-          var by0 = worldH - SBH; g.drawImage(mid, 0, by0); this._seabedFx(g, t, by0); this._crabs(g, dt, t);
+          var by0 = worldH - SBH; g.drawImage(mid, 0, by0); this._ledges(g, t, by0); this._seabedFx(g, t, by0); this._crabs(g, dt, t);
         }
         /* --- front kelp --- */
         var cf2 = Math.round(camFor(1.12, true)); if (cf2 + H > worldH - Math.max(120, kelpMax + 20)) { g.setTransform(1, 0, 0, 1, 0, -cf2); this._kelp(g, kelpF, t, 1); }
@@ -283,16 +398,30 @@
           b.lastVis = true; var px0 = b.x, py0 = b.y, slope = 0, bob = Math.sin(t * 1.2 + b.ph);
           if (b.drop) { b.vy += 230 * dt; b.y += b.vy * dt; b.ang += (0 - b.ang) * (1 - Math.exp(-dt * 2)) + b.spin * dt * .0; b.spin *= Math.exp(-dt * 1.2); b.ang += b.spin * dt * .35; if (b.y >= surfY(Math.round(b.x), t) - 2) { b.drop = false; this.splash(b.x, surfY(Math.round(b.x), t), true); b.vy = b.vy * .15; b.sinkV = 1; } }
           else if (b.float) { b.x += (b.tx + Math.sin(t * .3 + b.ph) * 4 - b.x) * (1 - ex); var sx = Math.round(b.x); b.y = surfY(sx, t) - 2 + bob * .7; slope = (surfY(sx + 6, t) - surfY(sx - 6, t)) / 12; }
-          else { b.x += (b.tx + Math.sin(t * .35 + b.ph) * 6 - b.x) * (1 - ex * .9); var goal = b.ty + (b.rocks >= 3 ? 0 : bob * 2.5 + Math.sin(t * .27 + b.ph * 2) * 2), dist = goal - b.y;
+          else { b.x += (b.tx + Math.sin(t * .35 + b.ph) * (b.rocks >= 3 ? 1.4 : 6) - b.x) * (1 - ex * .9); var goal = b.ty + bob * (b.rocks >= 3 ? .8 : 2.5) + (b.rocks >= 3 ? 0 : Math.sin(t * .27 + b.ph * 2) * 2), dist = goal - b.y;
             if (b.rocks) { var vt = clamp(Math.abs(dist) * .8, 5, 38); b.y += Math.sign(dist) * Math.min(Math.abs(dist), vt * dt); } else b.y += dist * (1 - Math.exp(-dt * 1.0)); }
           var vx = dt > 0 ? (b.x - px0) / dt : 0, vy = dt > 0 ? (b.y - py0) / dt : 0; b.vxS += (vx - b.vxS) * (1 - Math.exp(-dt * 6)); b.vyS += (vy - b.vyS) * (1 - Math.exp(-dt * 6));
-          if (!b.drop) { var tgt = slope * .9 + Math.sin(t * .6 + b.ph) * .07 + clamp(b.vxS * .03, -.4, .4) + clamp(b.vyS * .018, -.6, .6) * (b.rocks ? -1.2 : 1) + (b.row > 0 ? Math.sin(t * .4 + b.ph) * .1 : 0); if (b.rocks >= 3 && Math.abs(b.ty - b.y) < 3) tgt = 1.3 + Math.sin(b.n) * .15; b.ang += (tgt - b.ang) * (1 - Math.exp(-dt * 4.5)); }
-          lvl = Bt.level((b.y - SY) / DD); var gl = hoverId === b.id;
-          if (gl) { var pulse = .5 + .5 * Math.sin(t * 6); disc(g, Math.round(b.x), Math.round(b.y), 15, 'rgba(255,255,255,' + (.12 + pulse * .1).toFixed(2) + ')'); }
-          if (picking && !b.drop) { var bx = Math.round(b.x), by = Math.round(b.y), pp = (t * 2 | 0) % 2 ? 1 : 0, cl = 'rgba(255,255,255,.9)'; g.fillStyle = cl; [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (q) { var cx2 = bx + q[0] * (17 + pp), cy2 = by + q[1] * (13 + pp); g.fillRect(cx2 - (q[0] > 0 ? 3 : 0), cy2, 4, 1); g.fillRect(cx2, cy2 - (q[1] > 0 ? 3 : 0), 1, 4); }); }
+          if (!b.drop) { var tgt = slope * .9 + Math.sin(t * .6 + b.ph) * .07 + clamp(b.vxS * .03, -.4, .4) + clamp(b.vyS * .018, -.6, .6) * (b.rocks ? -1.2 : 1) + (b.row > 0 ? Math.sin(t * .4 + b.ph) * .1 : 0); if (b.rocks && Math.abs(b.ty - b.y) < 4) tgt = (b.tilt || 0) + Math.sin(t * .55 + b.ph) * .05; b.ang += (tgt - b.ang) * (1 - Math.exp(-dt * 4.5)); }
+          lvl = Bt.level((b.y - SY) / DD); var gl = hoverId === b.id, gx = Math.round(b.x), gy = Math.round(b.y);
+          if (b.float && !b.drop) { g.fillStyle = 'rgba(3,20,70,.28)'; g.fillRect(gx - 5, gy + 3, 10, 1); g.fillRect(gx - 3, gy + 4, 6, 1); }
+          if (b.rocks) { var glowA = (b.rocks >= 3 ? .16 : .1) * (.75 + .25 * Math.sin(t * 1.5 + b.ph)); disc(g, gx, gy, b.rocks >= 3 ? 13 : 11, 'rgba(220,240,255,' + glowA.toFixed(2) + ')'); if (b.rocks >= 3) disc(g, gx, gy, 6, 'rgba(255,248,220,' + (glowA * .55).toFixed(2) + ')'); }
+          if (gl) { var pulse = .5 + .5 * Math.sin(t * 6); disc(g, gx, gy, 15, 'rgba(255,255,255,' + (.12 + pulse * .1).toFixed(2) + ')'); }
+          if (picking && !b.drop) { var bx = gx, by = gy, pp = (t * 2 | 0) % 2 ? 1 : 0, cl = 'rgba(255,255,255,.9)'; g.fillStyle = cl; [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (q) { var cx2 = bx + q[0] * (17 + pp), cy2 = by + q[1] * (13 + pp); g.fillRect(cx2 - (q[0] > 0 ? 3 : 0), cy2, 4, 1); g.fillRect(cx2, cy2 - (q[1] > 0 ? 3 : 0), 1, 4); }); }
+          if (b.rocks) { var sil = Bt.sil(b.shape, b.rocks >= 3 ? '#f4ecd0' : '#d8eefc'); g.save(); g.translate(gx, gy); if (b.ang) g.rotate(b.ang); g.drawImage(sil.c, -sil.cx - 1, -sil.cy - 1); g.restore(); }
           Bt.draw(g, b, b.x, b.y, b.ang, lvl, t);
           if (b.drop === false && b.sinkV && !b.float && b.y > SY + 4 && Math.random() < dt * 6) parts.push({ x: b.x + (Math.random() - .5) * 8, y: b.y - 4, vx: 0, vy: -12, l: 1.2, k: 2, b: 0 });
           this._dom(b, camI);
+        }
+      },
+      _ledges: function (g, t, by0) {
+        var i, b, cx, fy, h, pulse;
+        for (i = 0; i < items.length; i++) {
+          b = items[i]; if ((b.rocks | 0) < 3 || b.drop) continue;
+          cx = Math.round(b.tx); fy = floorAt(cx); h = Math.max(8, Math.round((b.ledge || 14) - 4));
+          pulse = .1 + .06 * Math.sin(t * 1.3 + (b.ph || 0));
+          disc(g, cx, fy - 5, 12, 'rgba(200,228,255,' + pulse.toFixed(2) + ')');
+          disc(g, cx, fy - 8, 6, 'rgba(255,248,220,' + (pulse * .7).toFixed(2) + ')');
+          paintLedge(g, cx, fy, h);
         }
       },
       _dom: function (b, camI) { if (!b.el) return; var tx = Math.round((b.x - 17) * S), ty = Math.round((b.y - cam - 12) * S); if (b._tx !== tx || b._ty !== ty) { b._tx = tx; b._ty = ty; b.el.style.transform = 'translate3d(' + tx + 'px,' + ty + 'px,0)'; } },
@@ -302,11 +431,11 @@
           var cr = ys < surfY(x - 1, t) + 1 && ys <= surfY(x + 1, t) && ys < SY - 1; g.fillStyle = 'rgba(0,150,199,.22)'; g.fillRect(x, ys + 1, 1, 2);
           if (cr || hash(x, Math.floor(t * 1.2), 4) > .96) { g.fillStyle = 'rgba(236,250,254,.85)'; g.fillRect(x - 1, ys - 1, 3, 1); g.fillRect(x, ys, 1, 1); g.fillStyle = 'rgba(236,250,254,.4)'; g.fillRect(x, ys + 1, 2, 1); }
           if (Math.abs(x - kit.sunX()) < 34 && hash(x, Math.floor(t * 4), 8) > .6) { g.fillStyle = pc(P('#bcd8f0', '#ffffff'), .9); g.fillRect(x, ys + 1, 1, 1); } }
-        // water lip over floating bottles
+        // water lip over floating bottles — a dark wet line so glass stays readable against foam
         for (i = 0; i < items.length; i++) { var b = items[i]; if (!b.float || b.drop) continue; var bx = Math.round(b.x - b.bw / 2), by = Math.round(b.y);
-          g.globalAlpha = .62; for (x = bx; x < bx + b.bw; x++) { var wy = surfY(x, t) + 1; g.drawImage(wg, x, wy, 1, 10, x, wy, 1, 10); } g.globalAlpha = 1;
+          g.globalAlpha = .42; for (x = bx - 1; x < bx + b.bw + 1; x++) { var wy = surfY(x, t) + 1; g.drawImage(wg, x, wy, 1, 10, x, wy, 1, 10); } g.globalAlpha = 1;
           if (SOT.fx.night > .01) { g.fillStyle = 'rgba(3,6,72,' + (.58 * SOT.fx.night).toFixed(3) + ')'; for (x = bx; x < bx + b.bw; x++) { var wy3 = surfY(x, t) + 1; g.fillRect(x, wy3, 1, 10); } }
-          for (x = bx; x < bx + b.bw; x++) { var wy2 = surfY(x, t); if (hash(x, b.n, Math.floor(t * 2)) > .55) { g.fillStyle = 'rgba(255,255,255,.7)'; g.fillRect(x, wy2 + 1, 1, 1); } } }
+          for (x = bx; x < bx + b.bw; x++) { var wy2 = surfY(x, t); g.fillStyle = 'rgba(3,20,80,.55)'; g.fillRect(x, wy2, 1, 1); g.fillStyle = 'rgba(8,40,96,.3)'; g.fillRect(x, wy2 + 1, 1, 1); if (hash(x, b.n, Math.floor(t * 2)) > .84) { g.fillStyle = 'rgba(255,255,255,.9)'; g.fillRect(x, wy2 - 1, 1, 1); } } }
         for (i = ripples.length - 1; i >= 0; i--) { var rp = ripples[i]; rp.r += (rp.r < 0 ? 1.6 : 1) * 30 * dt; rp.a -= dt * 1.0; if (rp.a <= 0) { ripples.splice(i, 1); continue; } if (rp.r < 1) continue; var ry = surfY(Math.round(rp.x), t); g.fillStyle = 'rgba(255,255,255,' + (rp.a * .8).toFixed(2) + ')'; g.fillRect(Math.round(rp.x - rp.r), ry + 1, Math.max(2, rp.r * .6), 1); g.fillRect(Math.round(rp.x + rp.r - rp.r * .6), ry + 1, Math.max(2, rp.r * .6), 1); g.fillStyle = 'rgba(202,240,248,' + (rp.a * .5).toFixed(2) + ')'; g.fillRect(Math.round(rp.x - rp.r * .7), ry + 2, Math.round(rp.r * 1.4), 1); }
       },
       _particles: function (g, dt, t, camI) {

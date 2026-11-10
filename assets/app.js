@@ -16,7 +16,7 @@
 
   /* ---------- title: integer pixel scale, fades as you dive ---------- */
   var timg = $('title-img');
-  function scaleTitle() { var w = timg.naturalWidth; if (!w) return; var mobile = innerWidth <= 640, k = Math.max(1, Math.floor((mobile ? innerWidth - 24 : Math.min(innerWidth * .7, 900)) / w)); timg.style.width = (w * k) + 'px'; }
+  function scaleTitle() { var w = timg.naturalWidth; if (!w) return; var mobile = innerWidth <= 640, k = Math.max(1, Math.floor((mobile ? innerWidth - 24 : Math.min(innerWidth * .7, 900)) / w)); var next = (w * k) + 'px'; var changed = timg.style.width !== next; timg.style.width = next; if (changed && SOT.ocean && SOT.ocean.layout) { SOT.ocean.layout(); SOT.ocean.dirty = true; } }
   var titleEl = document.querySelector('.title'); function fadeTitle() { var y = window.scrollY || 0, o = Math.max(0, 1 - y / (innerHeight * .4)); titleEl.style.opacity = o.toFixed(2); titleEl.style.transform = 'translateY(' + (-y * .35).toFixed(0) + 'px)'; } addEventListener('scroll', fadeTitle, { passive: true }); fadeTitle();
   timg.addEventListener('load', scaleTitle); addEventListener('resize', scaleTitle); if (timg.complete) scaleTitle();
 

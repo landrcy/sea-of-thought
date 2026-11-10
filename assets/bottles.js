@@ -76,5 +76,28 @@
         g.drawImage(rock(i + b.n), rx - 3, ry); } }
     g.save(); g.translate(Math.round(x), Math.round(y)); if (ang) g.rotate(ang); g.drawImage(s.c, -s.cx, -s.cy); g.restore();
   }
-  SOT.bottles = { SHAPES: SHAPES, spr: spr, rock: rock, pick: pick, level: level, draw: draw, TINTS: TINTS, size: function (si) { var sh = SHAPES[si]; return { w: sh.prof.length + sh.sw + 2, h: sh.cy * 2 + 3 }; } };
+
+  var silC = {};
+  function sil(si, color) {
+    var k = si + '|' + color, sh = SHAPES[si], P = sh.prof, len = P.length, W = len + sh.sw + 4, H = sh.cy * 2 + 5;
+    if (silC[k]) return silC[k];
+    var c = mk(W, H), g = c.getContext('2d'), cy = sh.cy + 2, x, y;
+    g.fillStyle = color;
+    function at(x, y) {
+      if (x < 0 || x >= P.length) return false;
+      var off = sh.twist && x < 17 ? Math.round(1.2 * Math.sin(x * .45)) : 0;
+      return Math.abs(y - sh.cy - off) <= P[x];
+    }
+    for (y = 0; y < H; y++) for (x = 0; x < len; x++) {
+      if (!at(x, y - 2)) continue;
+      g.fillRect(x + 1, y - 1, 1, 1);
+      g.fillRect(x, y, 1, 1); g.fillRect(x + 2, y, 1, 1);
+      g.fillRect(x + 1, y + 1, 1, 1);
+    }
+    var sx = len, sH = sh.sh, s0 = cy - Math.floor(sH / 2);
+    g.fillRect(sx, s0, sh.sw + 2, 1); g.fillRect(sx, s0 + sH + 1, sh.sw + 2, 1);
+    g.fillRect(sx, s0, 1, sH + 2); g.fillRect(sx + sh.sw + 1, s0, 1, sH + 2);
+    return silC[k] = { c: c, w: W, h: H, cx: Math.round((len + sh.sw) / 2) + 1, cy: cy };
+  }
+  SOT.bottles = { SHAPES: SHAPES, spr: spr, rock: rock, pick: pick, level: level, draw: draw, sil: sil, TINTS: TINTS, size: function (si) { var sh = SHAPES[si]; return { w: sh.prof.length + sh.sw + 2, h: sh.cy * 2 + 3 }; } };
 })();
