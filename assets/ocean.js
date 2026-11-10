@@ -125,14 +125,14 @@
         sc.arrange(true);
       },
       arrange: function (rebuild) {
-        /* Depth rules (deterministic per bottle id): 0 stones = newest at the surface, older ones
-           scattered down the column (no visible rows). 1-stone fills the upper-mid band, 2-stone
-           the lower-mid (bands overlap slightly). 3-stone bottles hover just above the seafloor. */
-        var plain = items.filter(function (b) { return !b.rocks; }), stoned = items.filter(function (b) { return b.rocks; }), n = plain.length, k = clamp(Math.floor(cssW / 190), 2, 6), rows = Math.max(1, Math.ceil(n / k)), V = clamp(6 + Math.floor(items.length / 30), 6, 10);
-        var sbCss = SBH * S, first = 190, minGap = 96, deepRows = Math.max(0, rows - 1), SYc = SY * S;
-        var worldCss = V * cssH, usable = worldCss - SYc - sbCss - 110, need = first + Math.max(0, deepRows - 1) * minGap;
-        if (need > usable) { worldCss += need - usable; usable = need; }
-        var gap = deepRows > 1 ? clamp((usable - first) / (deepRows - 1), minGap, Math.max(420, cssH * .7)) : 300;
+        /* Depth rules (deterministic per bottle id): 0-stone bottles always stay at
+           the surface. The first row floats on the waterline; any extras pack into a
+           shallow staggered band just under it (not down the column). 1-stone fills
+           the upper-mid band, 2-stone the lower-mid (bands overlap slightly).
+           3-stone bottles hover just above the seafloor. */
+        var plain = items.filter(function (b) { return !b.rocks; }).slice().sort(function (a, b) { return b.n - a.n || b.ts - a.ts; });
+        var stoned = items.filter(function (b) { return b.rocks; }), n = plain.length, k = clamp(Math.floor(cssW / 130), 3, 14), V = clamp(6 + Math.floor(items.length / 30), 6, 10);
+        var worldCss = V * cssH;
         worldH = Math.ceil(worldCss / S); BT = worldH - SBH; camMax = Math.max(0, worldH - H); DD = Math.max(1, BT - SY); spacer.style.height = Math.round(worldH * S) + 'px';
         var m = Math.round(60 / S) + 8, span = W - m * 2, pk, sz, tb = titleBox();
         if (rebuild || !mid) buildSeabed();
@@ -170,10 +170,26 @@
         }
         plain.forEach(function (b) { b.tx = null; b.ty = null; });
         stoned.forEach(function (b) { b.tx = null; b.ty = null; });
+        /* First row rides the waterline. Extras pack into a shallow 40–80 css-px band
+           just under it, staggered and jittered so a crowd reads as clusters, not a grid. */
+        var surfaceN = Math.min(n, k), extraN = n - surfaceN;
+        var bandCss = extraN ? clamp(40 + Math.round(extraN / 4), 40, 80) : 0;
+        var depth0 = Math.max(4, Math.round(22 / S)), depth1 = Math.max(depth0 + 6, Math.round(bandCss / S));
+        var bandY0 = SY + depth0, bandY1 = SY + depth1;
+        var minSurf = Math.max(14, Math.min(22, Math.round(W / 16)));
         plain.forEach(function (b, i) {
-          var r = Math.floor(i / k), c = i % k, inRow = r === rows - 1 ? n - r * k : k, slot = span / inRow, jx = (bh(b, 3, 1) - .5) * slot * .3, jy = (bh(b, 4, 2) - .5) * 26;
-          b.row = r; b.float = r === 0; b.ty = r === 0 ? SY : SY + Math.min(first + (r - 1) * gap + jy, usable) / S;
-          b.tx = clamp(Math.round(m + (c + .5) * slot + jx), m, W - m);
+          if (i < surfaceN) {
+            var slot = span / Math.max(1, surfaceN), jx = (bh(b, 3, 1) - .5) * slot * .35;
+            b.row = 0; b.float = true; b.ty = SY;
+            b.tx = clamp(Math.round(m + (i + .5) * slot + jx), m, W - m);
+          } else {
+            var ei = i - surfaceN, en = extraN;
+            var ty = bandY0 + clamp((ei / Math.max(1, en)) * .4 + bh(b, 4, 2) * .6, .05, .98) * (bandY1 - bandY0);
+            var pref = m + (((ei * 0.6180339887) + bh(b, 3, 1) * .17) % 1) * span;
+            pref = Math.round(pref + (bh(b, 12, 6) - .5) * Math.min(36, span * .14));
+            b.row = 1; b.float = false;
+            place2D(b, pref, ty, minSurf, bandY0, bandY1);
+          }
         });
         /* If the title still sits close to the waterline, keep surface bottles out of its horizontal footprint. */
         if (tb && (SY * S - tb.bottom) < 64) {
@@ -190,6 +206,16 @@
               var count = onL ? ln : rn, idx = onL ? li++ : ri++, lo = onL ? m : t1, hi = onL ? t0 : (W - m), wid = Math.max(20, hi - lo);
               var jx2 = (bh(b, 3, 6) - .5) * Math.min(28, wid * .25);
               b.tx = clamp(Math.round(lo + (idx + .5) * (wid / Math.max(1, count)) + jx2), Math.round(lo), Math.round(hi));
+            });
+            /* Near-surface extras that would sit under the title slide to the same side gaps. */
+            plain.forEach(function (b) {
+              if (b.float || (b.ty * S >= tb.bottom + 28)) return;
+              if (b.tx > t0 && b.tx < t1) {
+                var goLeft = (leftW > 20) && (rightW <= 20 || bh(b, 21, 9) < leftW / Math.max(side, 1));
+                var lo2 = goLeft ? m : t1, hi2 = goLeft ? t0 : (W - m), wid2 = Math.max(20, hi2 - lo2);
+                var jx3 = (bh(b, 3, 6) - .5) * Math.min(28, wid2 * .25);
+                b.tx = clamp(Math.round(lo2 + (0.18 + bh(b, 7, 4) * .64) * wid2 + jx3), Math.round(lo2), Math.round(hi2));
+              }
             });
           }
         }
@@ -249,20 +275,6 @@
         }
         fillBand(stoned.filter(function (b) { return (b.rocks | 0) === 1; }), SY + BAND[1][0] * DD, SY + BAND[1][1] * DD, minMid);
         fillBand(stoned.filter(function (b) { return (b.rocks | 0) === 2; }), SY + BAND[2][0] * DD, SY + BAND[2][1] * DD, minMid);
-        /* Unweighted bottles below the surface keep an age trend (newer shallower) but are
-           scattered through the column so they never form a visible horizontal row. */
-        var sunk = plain.filter(function (b) { return !b.float; });
-        if (sunk.length) {
-          var sy0 = SY + 18, sy1 = BT - 28;
-          sunk.forEach(function (b, i) {
-            var slot = (i + .5) / sunk.length;
-            var jit = (bh(b, 4, 2) - .5) * (0.9 / Math.max(1, sunk.length) + 0.18);
-            var u = clamp(slot + jit, 0.03, 0.97);
-            var ty = sy0 + u * (sy1 - sy0);
-            var pref = clamp(Math.round((b.tx || (m + span / 2)) + (bh(b, 3, 6) - .5) * Math.min(56, span * .22)), m, W - m);
-            place2D(b, pref, ty, minMid, sy0, sy1);
-          });
-        }
         items.forEach(function (b) {
           b.ph = b.ph == null ? bh(b, 5, 3) * 6 : b.ph; pk = SOT.bottles.pick(b.n); b.shape = pk.shape; b.tint = pk.tint; b.wax = pk.wax; sz = SOT.bottles.size(b.shape); b.bw = sz.w; b.bh = sz.h;
           if (b.tilt == null) b.tilt = 0;
