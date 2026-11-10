@@ -140,9 +140,9 @@
         sc.arrange(true);
       },
       arrange: function (rebuild) {
-        /* Depth rules (deterministic per bottle id): 0 stones = age-based rows (newest at the surface).
-           1 / 2 / 3 stones settle in a random band for that weight, with x jitter and a slight tilt.
-           3-stone bottles rest on a sandy ledge on the seafloor and stay clear of key scenery. */
+        /* Depth rules (deterministic per bottle id): 0 stones = newest at the surface, older ones
+           scattered down the column (no visible rows). 1-stone fills the upper-mid band, 2-stone
+           the lower-mid (bands overlap slightly). 3-stone bottles rest on sandy seafloor ledges. */
         var plain = items.filter(function (b) { return !b.rocks; }), stoned = items.filter(function (b) { return b.rocks; }), n = plain.length, k = clamp(Math.floor(cssW / 190), 2, 6), rows = Math.max(1, Math.ceil(n / k)), V = clamp(6 + Math.floor(items.length / 30), 6, 10);
         var sbCss = SBH * S, first = 190, minGap = 96, deepRows = Math.max(0, rows - 1), SYc = SY * S;
         var worldCss = V * cssH, usable = worldCss - SYc - sbCss - 110, need = first + Math.max(0, deepRows - 1) * minGap;
@@ -172,6 +172,17 @@
           }
           return clamp(pref, m, W - m);
         }
+        function place2D(b, prefX, prefY, minD, y0, y1) {
+          var x = clamp(prefX, m, W - m), y = clamp(prefY, y0, y1), tries, ang, rad;
+          if (!occupied(x, y, b, minD, false)) { b.tx = Math.round(x); b.ty = y; return; }
+          for (tries = 1; tries <= 48; tries++) {
+            ang = bh(b, 11, tries) * 6.2832; rad = 8 + tries * 8;
+            x = clamp(Math.round(prefX + Math.cos(ang) * rad), m, W - m);
+            y = clamp(prefY + Math.sin(ang) * rad * 1.35, y0, y1);
+            if (!occupied(x, y, b, minD, false)) { b.tx = x; b.ty = y; return; }
+          }
+          b.tx = clamp(Math.round(prefX), m, W - m); b.ty = clamp(prefY, y0, y1);
+        }
         plain.forEach(function (b) { b.tx = null; b.ty = null; });
         stoned.forEach(function (b) { b.tx = null; b.ty = null; });
         plain.forEach(function (b, i) {
@@ -197,7 +208,7 @@
             });
           }
         }
-        var BAND = { 1: [.10, .34], 2: [.38, .66] };
+        var BAND = { 1: [.05, .55], 2: [.42, .90] };
         /* Use the core of each structure (not the padded full box) so bottles can sit in the sand pockets beside them. */
         var core = avoid.map(function (a) { var w = a[1] - a[0], inset = Math.min(36, Math.max(12, w * .3)); return [a[0] + inset, a[1] - inset]; }).filter(function (a) { return a[1] - a[0] > 16; });
         var free = [], x, blocked, i, a;
@@ -234,15 +245,38 @@
           if (!ok) px = clamp(Math.round(slot.s + (slot.used.length + .5) * slot.w / (slot.used.length + 1)), slot.s, slot.e);
           slot.used.push(px); b.tx = px; b.ty = floorAt(px) - lift; b.ledge = lift;
         });
-        stoned.forEach(function (b) {
-          if ((b.rocks | 0) >= 3) return;
-          var rk = Math.min(2, Math.max(1, b.rocks | 0)), band = BAND[rk], pref, ty;
-          b.row = 1; b.float = false; b.tilt = (bh(b, 15, 8) - .5) * .5;
-          pref = m + (((bh(b, 7, 3) * .62 + bh(b, 19, 5) * .38 + rk * .13) % 1) * span);
-          ty = SY + (band[0] + bh(b, 9, 4) * (band[1] - band[0])) * DD;
-          b.tx = placeX(b, Math.round(pref + (bh(b, 12, 6) - .5) * 28), ty, 30, false);
-          b.ty = ty;
-        });
+        /* 1-stone: upper-mid column; 2-stone: lower-mid; bands overlap slightly.
+           Depths are stratified then jittered so they fill the band instead of making a line. */
+        var minMid = Math.max(30, Math.min(42, Math.round(W / 8)));
+        function fillBand(list, y0, y1, minD) {
+          var shuffled = list.slice().sort(function (a, b) { var d = bh(a, 9, 4) - bh(b, 9, 4); return d || (a.n - b.n); });
+          shuffled.forEach(function (b, i) {
+            var slot = (i + .5) / Math.max(1, shuffled.length);
+            var jit = (bh(b, 14, 5) - .5) * (0.8 / Math.max(1, shuffled.length) + 0.16);
+            var u = clamp(slot + jit, 0.03, 0.97);
+            var ty = y0 + u * (y1 - y0);
+            var pref = m + (((bh(b, 7, 3) * .62 + bh(b, 19, 5) * .38) % 1) * span);
+            pref = Math.round(pref + (bh(b, 12, 6) - .5) * Math.min(48, span * .18));
+            b.row = 1; b.float = false; b.tilt = (bh(b, 15, 8) - .5) * .5;
+            place2D(b, pref, ty, minD, y0, y1);
+          });
+        }
+        fillBand(stoned.filter(function (b) { return (b.rocks | 0) === 1; }), SY + BAND[1][0] * DD, SY + BAND[1][1] * DD, minMid);
+        fillBand(stoned.filter(function (b) { return (b.rocks | 0) === 2; }), SY + BAND[2][0] * DD, SY + BAND[2][1] * DD, minMid);
+        /* Unweighted bottles below the surface keep an age trend (newer shallower) but are
+           scattered through the column so they never form a visible horizontal row. */
+        var sunk = plain.filter(function (b) { return !b.float; });
+        if (sunk.length) {
+          var sy0 = SY + 18, sy1 = BT - 28;
+          sunk.forEach(function (b, i) {
+            var slot = (i + .5) / sunk.length;
+            var jit = (bh(b, 4, 2) - .5) * (0.9 / Math.max(1, sunk.length) + 0.18);
+            var u = clamp(slot + jit, 0.03, 0.97);
+            var ty = sy0 + u * (sy1 - sy0);
+            var pref = clamp(Math.round((b.tx || (m + span / 2)) + (bh(b, 3, 6) - .5) * Math.min(56, span * .22)), m, W - m);
+            place2D(b, pref, ty, minMid, sy0, sy1);
+          });
+        }
         items.forEach(function (b) {
           b.ph = b.ph == null ? bh(b, 5, 3) * 6 : b.ph; pk = SOT.bottles.pick(b.n); b.shape = pk.shape; b.tint = pk.tint; b.wax = pk.wax; sz = SOT.bottles.size(b.shape); b.bw = sz.w; b.bh = sz.h;
           if (b.tilt == null) b.tilt = 0;
