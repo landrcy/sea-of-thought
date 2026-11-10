@@ -40,21 +40,6 @@
       if (!isFinite(top)) top = 14;
       return { top: top, bottom: top + h, left: (cssW - w) / 2, right: (cssW + w) / 2, w: w, h: h };
     }
-    function paintLedge(g, cx, floorY, h) {
-      /* small sandy pillow, not a hill — wide and low so it reads as a resting spot */
-      var rad = Math.max(11, Math.min(16, h + 8)), hh = Math.max(6, Math.min(10, h)), x, y, w, yy;
-      for (y = 0; y <= hh; y++) {
-        w = Math.round(rad * Math.sqrt(Math.max(0, 1 - (y / (hh + .4)) * (y / (hh + .4)))));
-        for (x = -w; x <= w; x++) {
-          var edge = x === -w || x === w, top = y >= hh - 1;
-          g.fillStyle = top ? '#efe4c4' : (edge ? '#6a5840' : ((x * 3 + y * 5) % 7 === 0 ? '#c4b080' : (y < 2 ? '#8a7350' : '#d8c8a0')));
-          g.fillRect(cx + x, floorY - y, 1, 1);
-        }
-      }
-      g.fillStyle = '#fff6dc';
-      for (x = -rad + 2; x <= rad - 2; x++) { yy = Math.round(hh * Math.sqrt(Math.max(0, 1 - (x / rad) * (x / rad)))); g.fillRect(cx + x, floorY - yy, 1, 1); }
-      g.fillStyle = '#b8e0f4'; g.fillRect(cx - 2, floorY - hh, 2, 1); g.fillRect(cx + 2, floorY - hh + 1, 1, 1);
-    }
     function camFor(f, anchorBottom) { return anchorBottom ? cam * f + camMax * (1 - f) : cam * f; }
 
     /* ---------- build static art ---------- */
@@ -142,7 +127,7 @@
       arrange: function (rebuild) {
         /* Depth rules (deterministic per bottle id): 0 stones = newest at the surface, older ones
            scattered down the column (no visible rows). 1-stone fills the upper-mid band, 2-stone
-           the lower-mid (bands overlap slightly). 3-stone bottles rest on sandy seafloor ledges. */
+           the lower-mid (bands overlap slightly). 3-stone bottles hover just above the seafloor. */
         var plain = items.filter(function (b) { return !b.rocks; }), stoned = items.filter(function (b) { return b.rocks; }), n = plain.length, k = clamp(Math.floor(cssW / 190), 2, 6), rows = Math.max(1, Math.ceil(n / k)), V = clamp(6 + Math.floor(items.length / 30), 6, 10);
         var sbCss = SBH * S, first = 190, minGap = 96, deepRows = Math.max(0, rows - 1), SYc = SY * S;
         var worldCss = V * cssH, usable = worldCss - SYc - sbCss - 110, need = first + Math.max(0, deepRows - 1) * minGap;
@@ -228,7 +213,8 @@
         var deep = stoned.filter(function (b) { return (b.rocks | 0) >= 3; }).slice().sort(function (a, b) { return a.n - b.n; });
         var minDX = Math.max(20, Math.min(36, Math.round(W / 10)));
         deep.forEach(function (b, di) {
-          var lift = 8 + Math.round(((di + .4 + (bh(b, 6, 2) - .5) * .35) / Math.max(1, deep.length)) * 18);
+          /* Hover just above the seafloor clutter, with a seeded random height in the band. */
+          var lift = 28 + Math.round(((di + .4 + (bh(b, 6, 2) - .5) * .4) / Math.max(1, deep.length)) * 44);
           b.row = 1; b.float = false; b.tilt = (bh(b, 15, 8) - .5) * .5;
           var best = 0, bestScore = -1e9, score, slot, tries, ok, px, g;
           for (gi = 0; gi < gaps.length; gi++) {
@@ -243,7 +229,7 @@
             tries++;
           } while (!ok && tries < 24);
           if (!ok) px = clamp(Math.round(slot.s + (slot.used.length + .5) * slot.w / (slot.used.length + 1)), slot.s, slot.e);
-          slot.used.push(px); b.tx = px; b.ty = floorAt(px) - lift; b.ledge = lift;
+          slot.used.push(px); b.tx = px; b.ty = floorAt(px) - lift;
         });
         /* 1-stone: upper-mid column; 2-stone: lower-mid; bands overlap slightly.
            Depths are stratified then jittered so they fill the band instead of making a line. */
@@ -335,7 +321,7 @@
         this._life(g, dt, t, camI, Lf); FX.food(g, camI, t);
         /* --- seabed (mid) --- */
         if (camI + H > worldH - SBH - 8) {
-          var by0 = worldH - SBH; g.drawImage(mid, 0, by0); this._ledges(g, t, by0); this._seabedFx(g, t, by0); this._crabs(g, dt, t);
+          var by0 = worldH - SBH; g.drawImage(mid, 0, by0); this._seabedFx(g, t, by0); this._crabs(g, dt, t);
         }
         /* --- front kelp --- */
         var cf2 = Math.round(camFor(1.12, true)); if (cf2 + H > worldH - Math.max(120, kelpMax + 20)) { g.setTransform(1, 0, 0, 1, 0, -cf2); this._kelp(g, kelpF, t, 1); }
@@ -432,30 +418,16 @@
           b.lastVis = true; var px0 = b.x, py0 = b.y, slope = 0, bob = Math.sin(t * 1.2 + b.ph);
           if (b.drop) { b.vy += 230 * dt; b.y += b.vy * dt; b.ang += (0 - b.ang) * (1 - Math.exp(-dt * 2)) + b.spin * dt * .0; b.spin *= Math.exp(-dt * 1.2); b.ang += b.spin * dt * .35; if (b.y >= surfY(Math.round(b.x), t) - 2) { b.drop = false; this.splash(b.x, surfY(Math.round(b.x), t), true); b.vy = b.vy * .15; b.sinkV = 1; } }
           else if (b.float) { b.x += (b.tx + Math.sin(t * .3 + b.ph) * 4 - b.x) * (1 - ex); var sx = Math.round(b.x); b.y = surfY(sx, t) - 2 + bob * .7; slope = (surfY(sx + 6, t) - surfY(sx - 6, t)) / 12; }
-          else { b.x += (b.tx + Math.sin(t * .35 + b.ph) * (b.rocks >= 3 ? 1.4 : 6) - b.x) * (1 - ex * .9); var goal = b.ty + bob * (b.rocks >= 3 ? .8 : 2.5) + (b.rocks >= 3 ? 0 : Math.sin(t * .27 + b.ph * 2) * 2), dist = goal - b.y;
+          else { b.x += (b.tx + Math.sin(t * .35 + b.ph) * (b.rocks >= 3 ? 2.4 : 6) - b.x) * (1 - ex * .9); var goal = b.ty + bob * (b.rocks >= 3 ? 1.6 : 2.5) + (b.rocks >= 3 ? Math.sin(t * .27 + b.ph * 2) * .8 : Math.sin(t * .27 + b.ph * 2) * 2), dist = goal - b.y;
             if (b.rocks) { var vt = clamp(Math.abs(dist) * .8, 5, 38); b.y += Math.sign(dist) * Math.min(Math.abs(dist), vt * dt); } else b.y += dist * (1 - Math.exp(-dt * 1.0)); }
           var vx = dt > 0 ? (b.x - px0) / dt : 0, vy = dt > 0 ? (b.y - py0) / dt : 0; b.vxS += (vx - b.vxS) * (1 - Math.exp(-dt * 6)); b.vyS += (vy - b.vyS) * (1 - Math.exp(-dt * 6));
           if (!b.drop) { var tgt = slope * .9 + Math.sin(t * .6 + b.ph) * .07 + clamp(b.vxS * .03, -.4, .4) + clamp(b.vyS * .018, -.6, .6) * (b.rocks ? -1.2 : 1) + (b.row > 0 ? Math.sin(t * .4 + b.ph) * .1 : 0); if (b.rocks && Math.abs(b.ty - b.y) < 4) tgt = (b.tilt || 0) + Math.sin(t * .55 + b.ph) * .05; b.ang += (tgt - b.ang) * (1 - Math.exp(-dt * 4.5)); }
           lvl = Bt.level((b.y - SY) / DD); var gl = hoverId === b.id, gx = Math.round(b.x), gy = Math.round(b.y);
-          if (b.float && !b.drop) { g.fillStyle = 'rgba(3,20,70,.28)'; g.fillRect(gx - 5, gy + 3, 10, 1); g.fillRect(gx - 3, gy + 4, 6, 1); }
-          if (b.rocks) { var glowA = (b.rocks >= 3 ? .16 : .1) * (.75 + .25 * Math.sin(t * 1.5 + b.ph)); disc(g, gx, gy, b.rocks >= 3 ? 13 : 11, 'rgba(220,240,255,' + glowA.toFixed(2) + ')'); if (b.rocks >= 3) disc(g, gx, gy, 6, 'rgba(255,248,220,' + (glowA * .55).toFixed(2) + ')'); }
           if (gl) { var pulse = .5 + .5 * Math.sin(t * 6); disc(g, gx, gy, 15, 'rgba(255,255,255,' + (.12 + pulse * .1).toFixed(2) + ')'); }
           if (picking && !b.drop) { var bx = gx, by = gy, pp = (t * 2 | 0) % 2 ? 1 : 0, cl = 'rgba(255,255,255,.9)'; g.fillStyle = cl; [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (q) { var cx2 = bx + q[0] * (17 + pp), cy2 = by + q[1] * (13 + pp); g.fillRect(cx2 - (q[0] > 0 ? 3 : 0), cy2, 4, 1); g.fillRect(cx2, cy2 - (q[1] > 0 ? 3 : 0), 1, 4); }); }
-          if (b.rocks) { var sil = Bt.sil(b.shape, b.rocks >= 3 ? '#f4ecd0' : '#d8eefc'); g.save(); g.translate(gx, gy); if (b.ang) g.rotate(b.ang); g.drawImage(sil.c, -sil.cx - 1, -sil.cy - 1); g.restore(); }
           Bt.draw(g, b, b.x, b.y, b.ang, lvl, t);
           if (b.drop === false && b.sinkV && !b.float && b.y > SY + 4 && Math.random() < dt * 6) parts.push({ x: b.x + (Math.random() - .5) * 8, y: b.y - 4, vx: 0, vy: -12, l: 1.2, k: 2, b: 0 });
           this._dom(b, camI);
-        }
-      },
-      _ledges: function (g, t, by0) {
-        var i, b, cx, fy, h, pulse;
-        for (i = 0; i < items.length; i++) {
-          b = items[i]; if ((b.rocks | 0) < 3 || b.drop) continue;
-          cx = Math.round(b.tx); fy = floorAt(cx); h = Math.max(8, Math.round((b.ledge || 14) - 4));
-          pulse = .1 + .06 * Math.sin(t * 1.3 + (b.ph || 0));
-          disc(g, cx, fy - 5, 12, 'rgba(200,228,255,' + pulse.toFixed(2) + ')');
-          disc(g, cx, fy - 8, 6, 'rgba(255,248,220,' + (pulse * .7).toFixed(2) + ')');
-          paintLedge(g, cx, fy, h);
         }
       },
       _dom: function (b, camI) { if (!b.el) return; var tx = Math.round((b.x - 17) * S), ty = Math.round((b.y - cam - 12) * S); if (b._tx !== tx || b._ty !== ty) { b._tx = tx; b._ty = ty; b.el.style.transform = 'translate3d(' + tx + 'px,' + ty + 'px,0)'; } },
@@ -465,11 +437,11 @@
           var cr = ys < surfY(x - 1, t) + 1 && ys <= surfY(x + 1, t) && ys < SY - 1; g.fillStyle = 'rgba(0,150,199,.22)'; g.fillRect(x, ys + 1, 1, 2);
           if (cr || hash(x, Math.floor(t * 1.2), 4) > .96) { g.fillStyle = 'rgba(236,250,254,.85)'; g.fillRect(x - 1, ys - 1, 3, 1); g.fillRect(x, ys, 1, 1); g.fillStyle = 'rgba(236,250,254,.4)'; g.fillRect(x, ys + 1, 2, 1); }
           if (Math.abs(x - kit.sunX()) < 34 && hash(x, Math.floor(t * 4), 8) > .6) { g.fillStyle = pc(P('#bcd8f0', '#ffffff'), .9); g.fillRect(x, ys + 1, 1, 1); } }
-        // water lip over floating bottles — a dark wet line so glass stays readable against foam
+        // water lip over floating bottles
         for (i = 0; i < items.length; i++) { var b = items[i]; if (!b.float || b.drop) continue; var bx = Math.round(b.x - b.bw / 2), by = Math.round(b.y);
-          g.globalAlpha = .42; for (x = bx - 1; x < bx + b.bw + 1; x++) { var wy = surfY(x, t) + 1; g.drawImage(wg, x, wy, 1, 10, x, wy, 1, 10); } g.globalAlpha = 1;
+          g.globalAlpha = .62; for (x = bx; x < bx + b.bw; x++) { var wy = surfY(x, t) + 1; g.drawImage(wg, x, wy, 1, 10, x, wy, 1, 10); } g.globalAlpha = 1;
           if (SOT.fx.night > .01) { g.fillStyle = 'rgba(3,6,72,' + (.58 * SOT.fx.night).toFixed(3) + ')'; for (x = bx; x < bx + b.bw; x++) { var wy3 = surfY(x, t) + 1; g.fillRect(x, wy3, 1, 10); } }
-          for (x = bx; x < bx + b.bw; x++) { var wy2 = surfY(x, t); g.fillStyle = 'rgba(3,20,80,.55)'; g.fillRect(x, wy2, 1, 1); g.fillStyle = 'rgba(8,40,96,.3)'; g.fillRect(x, wy2 + 1, 1, 1); if (hash(x, b.n, Math.floor(t * 2)) > .84) { g.fillStyle = 'rgba(255,255,255,.9)'; g.fillRect(x, wy2 - 1, 1, 1); } } }
+          for (x = bx; x < bx + b.bw; x++) { var wy2 = surfY(x, t); if (hash(x, b.n, Math.floor(t * 2)) > .55) { g.fillStyle = 'rgba(255,255,255,.7)'; g.fillRect(x, wy2 + 1, 1, 1); } } }
         for (i = ripples.length - 1; i >= 0; i--) { var rp = ripples[i]; rp.r += (rp.r < 0 ? 1.6 : 1) * 30 * dt; rp.a -= dt * 1.0; if (rp.a <= 0) { ripples.splice(i, 1); continue; } if (rp.r < 1) continue; var ry = surfY(Math.round(rp.x), t); g.fillStyle = 'rgba(255,255,255,' + (rp.a * .8).toFixed(2) + ')'; g.fillRect(Math.round(rp.x - rp.r), ry + 1, Math.max(2, rp.r * .6), 1); g.fillRect(Math.round(rp.x + rp.r - rp.r * .6), ry + 1, Math.max(2, rp.r * .6), 1); g.fillStyle = 'rgba(202,240,248,' + (rp.a * .5).toFixed(2) + ')'; g.fillRect(Math.round(rp.x - rp.r * .7), ry + 2, Math.round(rp.r * 1.4), 1); }
       },
       _particles: function (g, dt, t, camI) {
